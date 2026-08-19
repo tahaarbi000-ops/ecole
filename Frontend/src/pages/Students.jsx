@@ -110,10 +110,6 @@ export default function Students() {
     { key: 'id', label: 'ID', sortable: true },
     { key: 'nom', label: 'Nom', sortable: true },
     { key: 'prenom', label: 'Prénom', sortable: true },
-    { key: 'nomPere', label: 'Nom père' },
-    { key: 'nomMere', label: 'Nom mère' },
-    { key: 'telephonePere', label: 'Tél. père' },
-    { key: 'telephoneMere', label: 'Tél. mère' },
     {
       key: 'sexe',
       label: 'Sexe',

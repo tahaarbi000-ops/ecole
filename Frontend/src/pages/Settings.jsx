@@ -4,13 +4,11 @@ import PageHeader from '../components/common/PageHeader';
 import GeneralInfoTab from '../components/settings/GeneralInfoTab';
 import TuitionFeesTab from '../components/settings/TuitionFeesTab';
 import TransportFeesTab from '../components/settings/TransportFeesTab';
-import AppearanceTab from '../components/settings/AppearanceTab';
 
 const TABS = [
   { label: 'Général', icon: Building2, panel: GeneralInfoTab },
   { label: 'Tarifs scolarité', icon: GraduationCap, panel: TuitionFeesTab },
   { label: 'Tarifs transport', icon: Bus, panel: TransportFeesTab },
-  { label: 'Apparence', icon: Palette, panel: AppearanceTab },
 ];
 
 export default function Settings() {

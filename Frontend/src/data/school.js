@@ -22,9 +22,6 @@ export const levels = [
   '4ème année',
   '5ème année',
   '6ème année',
-  '7ème année',
-  '8ème année',
-  '9ème année',
 ];
 
 export const tuitionFees = [
