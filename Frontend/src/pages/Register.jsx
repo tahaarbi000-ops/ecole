@@ -1,27 +1,27 @@
 import { Box, HStack, Text } from '@chakra-ui/react';
 import { NavLink, Outlet, useLocation, Navigate } from 'react-router-dom';
-import { LogIn, LogOut, CalendarX2, Clock3, MessageSquareText } from 'lucide-react';
+import { CalendarX2, Clock3, MessageSquareText, DoorOpen } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 
 const SUB_NAV = [
-  { label: 'Entrées', to: '/register/entries', icon: LogIn },
-  { label: 'Sorties', to: '/register/exits', icon: LogOut },
-  { label: 'Absences', to: '/register/absences', icon: CalendarX2 },
+  { label: 'Absences', to: '/register/absences', icon: CalendarX2, matchPrefix: '/register/absences' },
   { label: 'Retards', to: '/register/late', icon: Clock3 },
   { label: 'Observations', to: '/register/observations', icon: MessageSquareText },
+  { label: 'Maîtres — Entrées/Sorties', to: '/register/teacher-movements', icon: DoorOpen },
 ];
 
 export default function Register() {
   const location = useLocation();
 
-  // Redirige /register vers /register/entries par défaut.
+  // Redirige /register vers /register/absences (qui redirige lui-même vers
+  // la catégorie Élèves) par défaut.
   if (location.pathname === '/register') {
-    return <Navigate to="/register/entries" replace />;
+    return <Navigate to="/register/absences" replace />;
   }
 
   return (
     <Box>
-      <PageHeader title="Registre scolaire" subtitle="Entrées, sorties, absences, retards et observations." />
+      <PageHeader title="Registre scolaire" subtitle="Absences, retards, observations et pointage des maîtres." />
 
       <HStack
         spacing={1}
@@ -36,7 +36,9 @@ export default function Register() {
         maxW="full"
       >
         {SUB_NAV.map((item) => {
-          const isActive = location.pathname === item.to;
+          const isActive = item.matchPrefix
+            ? location.pathname.startsWith(item.matchPrefix)
+            : location.pathname === item.to;
           return (
             <HStack
               as={NavLink}

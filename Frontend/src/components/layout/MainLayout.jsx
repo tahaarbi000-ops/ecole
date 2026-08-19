@@ -16,17 +16,20 @@ const PAGE_TITLES = {
 };
 
 function getPageTitle(pathname) {
-  if (pathname.startsWith('/register')) {
-    const sub = pathname.split('/')[2];
+  if (pathname.startsWith('/register/absences')) {
+    const category = pathname.split('/')[3];
     const map = {
-      entries: 'Registre — Entrées',
-      exits: 'Registre — Sorties',
-      absences: 'Registre — Absences',
-      late: 'Registre — Retards',
-      observations: 'Registre — Observations',
+      eleves: 'Registre — Absences Élèves',
+      maitres: 'Registre — Absences Maîtres',
+      surveillants: 'Registre — Absences Surveillants',
+      employes: 'Registre — Absences Employés',
     };
-    return map[sub] || 'Registre';
+    return map[category] || 'Registre — Absences';
   }
+  if (pathname === '/register/late') return 'Registre — Retards';
+  if (pathname === '/register/observations') return 'Registre — Observations';
+  if (pathname === '/register/teacher-movements') return 'Registre — Maîtres (Entrées/Sorties)';
+  if (pathname.startsWith('/register')) return 'Registre';
   return PAGE_TITLES[pathname] || 'École Al Amal';
 }
 

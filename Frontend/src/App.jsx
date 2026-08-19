@@ -10,11 +10,13 @@ import Teachers from './pages/Teachers';
 import Supervisors from './pages/Supervisors';
 import Employees from './pages/Employees';
 import Register from './pages/Register';
-import RegisterEntries from './pages/register/Entries';
-import RegisterExits from './pages/register/Exits';
-import RegisterAbsences from './pages/register/Absences';
-import RegisterLate from './pages/register/Late';
-import RegisterObservations from './pages/register/Observations';
+import AbsenceEleves from './pages/register/AbsenceEleves';
+import AbsenceMaitres from './pages/register/AbsenceMaitres';
+import AbsenceSurveillants from './pages/register/AbsenceSurveillants';
+import AbsenceEmployes from './pages/register/AbsenceEmployes';
+import Late from './pages/register/Late';
+import Observations from './pages/register/Observations';
+import TeacherMovements from './pages/register/TeacherMovements';
 import Payments from './pages/Payments';
 import Backup from './pages/Backup';
 import Settings from './pages/Settings';
@@ -35,11 +37,14 @@ export default function App() {
             <Route path="/employees" element={<Employees />} />
 
             <Route path="/register" element={<Register />}>
-              <Route path="entries" element={<RegisterEntries />} />
-              <Route path="exits" element={<RegisterExits />} />
-              <Route path="absences" element={<RegisterAbsences />} />
-              <Route path="late" element={<RegisterLate />} />
-              <Route path="observations" element={<RegisterObservations />} />
+              <Route path="absences" element={<Navigate to="/register/absences/eleves" replace />} />
+              <Route path="absences/eleves" element={<AbsenceEleves />} />
+              <Route path="absences/maitres" element={<AbsenceMaitres />} />
+              <Route path="absences/surveillants" element={<AbsenceSurveillants />} />
+              <Route path="absences/employes" element={<AbsenceEmployes />} />
+              <Route path="late" element={<Late />} />
+              <Route path="observations" element={<Observations />} />
+              <Route path="teacher-movements" element={<TeacherMovements />} />
             </Route>
 
             <Route path="/payments" element={<Payments />} />

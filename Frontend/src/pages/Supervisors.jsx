@@ -1,5 +1,15 @@
-import ComingSoon from '../components/common/ComingSoon';
+import StaffPageBase from '../components/staff/StaffPageBase';
+import { supervisors, supervisorRoles } from '../data/supervisors';
 
 export default function Supervisors() {
-  return <ComingSoon title="Surveillants" part="PARTIE 3" />;
+  return (
+    <StaffPageBase
+      pageTitle="Surveillants"
+      entityLabel="un surveillant"
+      initialData={supervisors}
+      roleFieldKey="role"
+      roleFieldLabel="Rôle"
+      roleOptions={supervisorRoles}
+    />
+  );
 }
