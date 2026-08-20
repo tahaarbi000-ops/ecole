@@ -28,6 +28,9 @@ const Student  = sequelize.define("students",{
     address:{
         type:DataTypes.STRING,
     },
+    class:{
+        type:DataTypes.STRING,
+    },
     gender:{
         type:DataTypes.ENUM("garçon","fille"),
     },

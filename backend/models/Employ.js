@@ -1,7 +1,7 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/db");
 
-const Teacher  = sequelize.define("teachers",{
+const Employ  = sequelize.define("employs",{
     id:{
         type:DataTypes.BIGINT,
         primaryKey:true,
@@ -16,6 +16,9 @@ const Teacher  = sequelize.define("teachers",{
     phone:{
         type:DataTypes.STRING,
     },
+    role:{
+        type:DataTypes.ENUM("secrétaire","comptable","chauffeur","agent de nettoyage","agent de sécurité"),
+    },
     salary :{
         type:DataTypes.NUMBER,
     },
@@ -26,4 +29,4 @@ const Teacher  = sequelize.define("teachers",{
         type:DataTypes.ENUM("actif","inactif","en congé"),
     },
 })
-module.exports = Teacher
+module.exports = Employ
