@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import {
   SimpleGrid,
   FormControl,
@@ -11,154 +11,366 @@ import {
   Radio,
   HStack,
 } from '@chakra-ui/react';
+import { Formik, Form } from 'formik';
+import * as Yup from 'yup';
+
 import FormModal from '../common/FormModal';
 import { levels } from '../../data/school';
 
 const EMPTY_FORM = {
-  nom: '',
-  prenom: '',
-  nomPere: '',
-  nomMere: '',
-  telephonePere: '',
-  telephoneMere: '',
-  sexe: 'M',
-  dateNaissance: '',
-  niveau: '',
-  localisation: '',
+  name: '',
+  last_name: '',
+  father_name: '',
+  mother_name: '',
+  father_phone: '',
+  mother_phone: '',
+  gender: 'garçon',
+  birthday: '',
+  classe: '',
+  address: '',
 };
 
-/**
- * Formulaire modal d'ajout / modification d'un élève.
- *
- * @param {boolean} isOpen
- * @param {Function} onClose
- * @param {Function} onSubmit  (formData) => void
- * @param {Object|null} student  Élève à modifier (null = mode ajout)
- * @param {boolean} isSaving
- */
-export default function StudentFormModal({ isOpen, onClose, onSubmit, student = null, isSaving = false }) {
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [errors, setErrors] = useState({});
+const studentSchema = Yup.object({
+  name: Yup.string()
+    .trim()
+    .required('Name is required.'),
+
+  last_name: Yup.string()
+    .trim()
+    .required('Last name is required.'),
+
+  father_name: Yup.string()
+    .trim(),
+
+  mother_name: Yup.string()
+    .trim(),
+
+  father_phone: Yup.string()
+    .matches(
+      /^\d[\d\s]{6,}$/,
+      'Invalid phone number.'
+    )
+    .nullable(),
+
+  mother_phone: Yup.string()
+    .matches(
+      /^\d[\d\s]{6,}$/,
+      'Invalid phone number.'
+    )
+    .nullable(),
+
+  gender: Yup.string()
+    .oneOf(['garçon', 'fille'], 'Gender must be garçon or fille.')
+    .required('Gender is required.'),
+
+  birthday: Yup.date()
+    .required('Date of birth is required.')
+    .typeError('Invalid date of birth.'),
+
+  classe: Yup.string()
+    .trim()
+    .required('Class is required.'),
+
+  address: Yup.string()
+    .trim()
+    .required('Address is required.'),
+});
+
+export default function StudentFormModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  student = null,
+  isSaving = false,
+}) {
   const isEditMode = Boolean(student);
 
-  useEffect(() => {
-    if (isOpen) {
-      setForm(student ? { ...EMPTY_FORM, ...student } : EMPTY_FORM);
-      setErrors({});
-    }
-  }, [isOpen, student]);
-
-  const setField = (field) => (e) => {
-    const value = e?.target ? e.target.value : e;
-    setForm((f) => ({ ...f, [field]: value }));
-  };
-
-  const validate = () => {
-    const next = {};
-    if (!form.nom.trim()) next.nom = 'Le nom est requis.';
-    if (!form.prenom.trim()) next.prenom = 'Le prénom est requis.';
-    if (!form.niveau) next.niveau = 'Le niveau est requis.';
-    if (!form.dateNaissance) next.dateNaissance = 'La date de naissance est requise.';
-    if (!form.localisation.trim()) next.localisation = 'La localisation est requise.';
-    if (form.telephonePere && !/^\d[\d\s]{6,}$/.test(form.telephonePere)) {
-      next.telephonePere = 'Numéro invalide.';
-    }
-    if (form.telephoneMere && !/^\d[\d\s]{6,}$/.test(form.telephoneMere)) {
-      next.telephoneMere = 'Numéro invalide.';
-    }
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!validate()) return;
-    onSubmit(form);
-  };
+  const initialValues = student
+    ? {
+        ...EMPTY_FORM,
+        ...student,
+      }
+    : EMPTY_FORM;
 
   return (
-    <FormModal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={isEditMode ? `Modifier l\u2019élève — ${student.prenom} ${student.nom}` : 'Ajouter un élève'}
-      footer={
-        <>
-          <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={handleSubmit} isLoading={isSaving} loadingText="Enregistrement…">
-            {isEditMode ? 'Enregistrer les modifications' : 'Ajouter l\u2019élève'}
-          </Button>
-        </>
-      }
+    <Formik
+      initialValues={initialValues}
+      validationSchema={studentSchema}
+      enableReinitialize
+      onSubmit={onSubmit}
     >
-      <form id="student-form" onSubmit={handleSubmit} noValidate>
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-          <FormControl isInvalid={Boolean(errors.nom)} isRequired>
-            <FormLabel fontSize="sm">Nom</FormLabel>
-            <Input value={form.nom} onChange={setField('nom')} placeholder="Ben Ali" />
-            <FormErrorMessage>{errors.nom}</FormErrorMessage>
-          </FormControl>
+      {({
+        values,
+        errors,
+        touched,
+        handleChange,
+        handleSubmit,
+        setFieldValue,
+      }) => (
+        <FormModal
+          isOpen={isOpen}
+          onClose={onClose}
+          title={
+            isEditMode
+              ? `Modifier l’élève — ${student.first_name || student.prenom} ${student.name || student.nom}`
+              : 'Ajouter un élève'
+          }
+          footer={
+            <>
+              <Button
+                variant="outline"
+                onClick={onClose}
+                isDisabled={isSaving}
+              >
+                Annuler
+              </Button>
 
-          <FormControl isInvalid={Boolean(errors.prenom)} isRequired>
-            <FormLabel fontSize="sm">Prénom</FormLabel>
-            <Input value={form.prenom} onChange={setField('prenom')} placeholder="Mohamed" />
-            <FormErrorMessage>{errors.prenom}</FormErrorMessage>
-          </FormControl>
+              <Button
+                onClick={handleSubmit}
+                isLoading={isSaving}
+                loadingText="Enregistrement…"
+              >
+                {isEditMode
+                  ? 'Enregistrer les modifications'
+                  : 'Ajouter l’élève'}
+              </Button>
+            </>
+          }
+        >
+          <Form id="student-form">
+            <SimpleGrid
+              columns={{ base: 1, md: 2 }}
+              spacing={4}
+            >
+              {/* Name */}
+              <FormControl
+                isInvalid={touched.name && errors.name}
+                isRequired
+              >
+                <FormLabel fontSize="sm">
+                  Name
+                </FormLabel>
 
-          <FormControl>
-            <FormLabel fontSize="sm">Nom du père</FormLabel>
-            <Input value={form.nomPere} onChange={setField('nomPere')} placeholder="Karim Ben Ali" />
-          </FormControl>
+                <Input
+                  name="name"
+                  value={values.name}
+                  onChange={handleChange}
+                  placeholder="Ben Ali"
+                />
 
-          <FormControl>
-            <FormLabel fontSize="sm">Nom de la mère</FormLabel>
-            <Input value={form.nomMere} onChange={setField('nomMere')} placeholder="Amel Trabelsi" />
-          </FormControl>
+                <FormErrorMessage>
+                  {errors.name}
+                </FormErrorMessage>
+              </FormControl>
 
-          <FormControl isInvalid={Boolean(errors.telephonePere)}>
-            <FormLabel fontSize="sm">Téléphone du père</FormLabel>
-            <Input value={form.telephonePere} onChange={setField('telephonePere')} placeholder="20 145 632" />
-            <FormErrorMessage>{errors.telephonePere}</FormErrorMessage>
-          </FormControl>
+              {/* Last name */}
+              <FormControl
+                isInvalid={touched.last_name && errors.last_name}
+                isRequired
+              >
+                <FormLabel fontSize="sm">
+                  Last name
+                </FormLabel>
 
-          <FormControl isInvalid={Boolean(errors.telephoneMere)}>
-            <FormLabel fontSize="sm">Téléphone de la mère</FormLabel>
-            <Input value={form.telephoneMere} onChange={setField('telephoneMere')} placeholder="22 987 411" />
-            <FormErrorMessage>{errors.telephoneMere}</FormErrorMessage>
-          </FormControl>
+                <Input
+                  name="last_name"
+                  value={values.last_name}
+                  onChange={handleChange}
+                  placeholder="Mohamed"
+                />
 
-          <FormControl isRequired>
-            <FormLabel fontSize="sm">Sexe</FormLabel>
-            <RadioGroup value={form.sexe} onChange={setField('sexe')}>
-              <HStack spacing={5} h="40px">
-                <Radio value="M" colorScheme="blue">Garçon</Radio>
-                <Radio value="F" colorScheme="blue">Fille</Radio>
-              </HStack>
-            </RadioGroup>
-          </FormControl>
+                <FormErrorMessage>
+                  {errors.last_name}
+                </FormErrorMessage>
+              </FormControl>
 
-          <FormControl isInvalid={Boolean(errors.dateNaissance)} isRequired>
-            <FormLabel fontSize="sm">Date de naissance</FormLabel>
-            <Input type="date" value={form.dateNaissance} onChange={setField('dateNaissance')} />
-            <FormErrorMessage>{errors.dateNaissance}</FormErrorMessage>
-          </FormControl>
+              {/* Father */}
+              <FormControl>
+                <FormLabel fontSize="sm">
+                  Father's name
+                </FormLabel>
 
-          <FormControl isInvalid={Boolean(errors.niveau)} isRequired>
-            <FormLabel fontSize="sm">Niveau</FormLabel>
-            <Select placeholder="Sélectionner un niveau" value={form.niveau} onChange={setField('niveau')}>
-              {levels.map((lvl) => (
-                <option key={lvl} value={lvl}>{lvl}</option>
-              ))}
-            </Select>
-            <FormErrorMessage>{errors.niveau}</FormErrorMessage>
-          </FormControl>
+                <Input
+                  name="father_name"
+                  value={values.father_name}
+                  onChange={handleChange}
+                  placeholder="Karim Ben Ali"
+                />
+              </FormControl>
 
-          <FormControl isInvalid={Boolean(errors.localisation)} isRequired gridColumn={{ md: 'span 2' }}>
-            <FormLabel fontSize="sm">Localisation</FormLabel>
-            <Input value={form.localisation} onChange={setField('localisation')} placeholder="Sousse — Khezama" />
-            <FormErrorMessage>{errors.localisation}</FormErrorMessage>
-          </FormControl>
-        </SimpleGrid>
-      </form>
-    </FormModal>
+              {/* Mother */}
+              <FormControl>
+                <FormLabel fontSize="sm">
+                  Mother's name
+                </FormLabel>
+
+                <Input
+                  name="mother_name"
+                  value={values.mother_name}
+                  onChange={handleChange}
+                  placeholder="Amel Trabelsi"
+                />
+              </FormControl>
+
+              {/* Father phone */}
+              <FormControl
+                isInvalid={
+                  touched.father_phone &&
+                  errors.father_phone
+                }
+              >
+                <FormLabel fontSize="sm">
+                  Father's phone
+                </FormLabel>
+
+                <Input
+                  name="father_phone"
+                  value={values.father_phone}
+                  onChange={handleChange}
+                  placeholder="20 145 632"
+                />
+
+                <FormErrorMessage>
+                  {errors.father_phone}
+                </FormErrorMessage>
+              </FormControl>
+
+              {/* Mother phone */}
+              <FormControl
+                isInvalid={
+                  touched.mother_phone &&
+                  errors.mother_phone
+                }
+              >
+                <FormLabel fontSize="sm">
+                  Mother's phone
+                </FormLabel>
+
+                <Input
+                  name="mother_phone"
+                  value={values.mother_phone}
+                  onChange={handleChange}
+                  placeholder="22 987 411"
+                />
+
+                <FormErrorMessage>
+                  {errors.mother_phone}
+                </FormErrorMessage>
+              </FormControl>
+
+              {/* Gender */}
+              <FormControl isRequired>
+                <FormLabel fontSize="sm">
+                  Gender
+                </FormLabel>
+
+                <RadioGroup
+                  value={values.gender}
+                  onChange={(value) =>
+                    setFieldValue('gender', value)
+                  }
+                >
+                  <HStack spacing={5} h="40px">
+                    <Radio value="garçon" colorScheme="blue">
+                      Boy
+                    </Radio>
+
+                    <Radio value="fille" colorScheme="blue">
+                      Girl
+                    </Radio>
+                  </HStack>
+                </RadioGroup>
+
+                <FormErrorMessage>
+                  {errors.gender}
+                </FormErrorMessage>
+              </FormControl>
+
+              {/* Birthday */}
+              <FormControl
+                isInvalid={
+                  touched.birthday &&
+                  errors.birthday
+                }
+                isRequired
+              >
+                <FormLabel fontSize="sm">
+                  Date of birth
+                </FormLabel>
+
+                <Input
+                  type="date"
+                  name="birthday"
+                  value={values.birthday}
+                  onChange={handleChange}
+                />
+
+                <FormErrorMessage>
+                  {errors.birthday}
+                </FormErrorMessage>
+              </FormControl>
+
+              {/* Class */}
+              <FormControl
+                isInvalid={
+                  touched.classe &&
+                  errors.classe
+                }
+                isRequired
+              >
+                <FormLabel fontSize="sm">
+                  Class
+                </FormLabel>
+
+                <Select
+                  name="classe"
+                  placeholder="Select a class"
+                  value={values.classe}
+                  onChange={handleChange}
+                >
+                  {levels.map((level) => (
+                    <option
+                      key={level}
+                      value={level}
+                    >
+                      {level}
+                    </option>
+                  ))}
+                </Select>
+
+                <FormErrorMessage>
+                  {errors.classe}
+                </FormErrorMessage>
+              </FormControl>
+
+              {/* Address */}
+              <FormControl
+                isInvalid={
+                  touched.address &&
+                  errors.address
+                }
+                isRequired
+                gridColumn={{ md: 'span 2' }}
+              >
+                <FormLabel fontSize="sm">
+                  Address
+                </FormLabel>
+
+                <Input
+                  name="address"
+                  value={values.address}
+                  onChange={handleChange}
+                  placeholder="Sousse — Khezama"
+                />
+
+                <FormErrorMessage>
+                  {errors.address}
+                </FormErrorMessage>
+              </FormControl>
+            </SimpleGrid>
+          </Form>
+        </FormModal>
+      )}
+    </Formik>
   );
 }

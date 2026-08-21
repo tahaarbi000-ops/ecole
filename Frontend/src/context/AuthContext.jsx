@@ -1,4 +1,5 @@
 import { createContext, useContext, useMemo, useState, useEffect } from 'react';
+import { Axios } from '../api/Api';
 
 const AuthContext = createContext(null);
 
@@ -35,19 +36,29 @@ export function AuthProvider({ children }) {
     }
   }, [user]);
 
-  const login = (email, password) => {
-    return new Promise((resolve, reject) => {
-      // Simule une latence réseau, comme un futur appel API réel.
-      setTimeout(() => {
-        if (email.trim().toLowerCase() === FAKE_CREDENTIALS.email && password === FAKE_CREDENTIALS.password) {
-          setUser(FAKE_USER);
-          resolve(FAKE_USER);
-        } else {
-          reject(new Error('Email ou mot de passe incorrect.'));
-        }
-      }, 900);
-    });
-  };
+  const login = async (email, password) => {
+    try {
+        const response = await Axios.post("/auth/login", {
+            email: email.trim().toLowerCase(),
+            password
+        });
+
+        const { token, user } = response.data;
+
+        localStorage.setItem("auth", token);
+
+        setUser(user);
+
+        return user;
+
+    } catch (error) {
+        const message =
+            error.response?.data?.message ||
+            "Email ou mot de passe incorrect.";
+
+        throw new Error(message);
+    }
+};
 
   const logout = () => setUser(null);
 

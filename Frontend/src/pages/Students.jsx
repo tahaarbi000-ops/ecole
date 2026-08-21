@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -12,7 +12,7 @@ import {
   Text,
   Wrap,
 } from '@chakra-ui/react';
-import { Plus, Eye, Pencil, Trash2, Download, Users } from 'lucide-react';
+import { Plus, Eye, Pencil, Trash2, Download, Users, Flashlight } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import SearchBar from '../components/common/SearchBar';
 import DataTable from '../components/common/DataTable';
@@ -21,8 +21,8 @@ import StudentFormModal from '../components/students/StudentFormModal';
 import StudentViewModal from '../components/students/StudentViewModal';
 import { students as initialStudents } from '../data/students';
 import { levels } from '../data/school';
+import { AxiosToken } from '../api/Api';
 
-const GENDER_LABEL = { M: 'Garçon', F: 'Fille' };
 
 function formatDate(iso) {
   if (!iso) return '—';
@@ -31,7 +31,7 @@ function formatDate(iso) {
 
 export default function Students() {
   const toast = useToast();
-  const [students, setStudents] = useState(initialStudents);
+  const [students, setStudents] = useState([]);
 
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState('');
@@ -46,14 +46,26 @@ export default function Students() {
   const viewModal = useDisclosure();
   const deleteDialog = useDisclosure();
 
+  useEffect(()=>{
+    const fetchData = async () => {
+      try{
+        const response = await AxiosToken.get("/student");
+        setStudents(response.data.students)
+      }catch{
+        console.error("error")
+      }
+    }
+    fetchData()
+  },[])
+
   const filteredStudents = useMemo(() => {
     const term = search.trim().toLowerCase();
     return students.filter((s) => {
       const matchesSearch =
         !term ||
-        `${s.nom} ${s.prenom} ${s.localisation}`.toLowerCase().includes(term);
-      const matchesLevel = !levelFilter || s.niveau === levelFilter;
-      const matchesGender = !genderFilter || s.sexe === genderFilter;
+        `${s.name} ${s.last_name} ${s.address}`.toLowerCase().includes(term);
+      const matchesLevel = !levelFilter || s.classe === levelFilter;
+      const matchesGender = !genderFilter || s.gender === genderFilter;
       return matchesSearch && matchesLevel && matchesGender;
     });
   }, [students, search, levelFilter, genderFilter]);
@@ -78,22 +90,26 @@ export default function Students() {
     deleteDialog.onOpen();
   };
 
-  const handleSubmit = (formData) => {
+ const handleSubmit = async (formData, { resetForm }) => {
     setIsSaving(true);
-    // Simule la latence d'un futur appel API (createStudent / updateStudent).
-    setTimeout(() => {
-      if (selectedStudent) {
-        setStudents((prev) => prev.map((s) => (s.id === selectedStudent.id ? { ...s, ...formData } : s)));
-        toast({ title: 'Élève modifié avec succès', status: 'success', duration: 3000, isClosable: true });
-      } else {
-        const newStudent = { ...formData, id: Math.max(0, ...students.map((s) => s.id)) + 1 };
-        setStudents((prev) => [newStudent, ...prev]);
-        toast({ title: 'Élève ajouté avec succès', status: 'success', duration: 3000, isClosable: true });
-      }
-      setIsSaving(false);
-      formModal.onClose();
-    }, 700);
-  };
+
+    try {
+        const response = await AxiosToken.post(
+            "/student",
+            formData
+        );
+
+        resetForm();
+
+        formModal.onClose();
+
+    } catch (error) {
+        console.error(error);
+    } finally {
+        setIsSaving(false);
+    }
+};
+console.log(isSaving)
 
   const handleDelete = () => {
     setIsDeleting(true);
@@ -108,26 +124,26 @@ export default function Students() {
 
   const columns = [
     { key: 'id', label: 'ID', sortable: true },
-    { key: 'nom', label: 'Nom', sortable: true },
-    { key: 'prenom', label: 'Prénom', sortable: true },
+    { key: 'name', label: 'Nom', sortable: true },
+    { key: 'last_name', label: 'Prénom', sortable: true },
     {
-      key: 'sexe',
+      key: 'gender',
       label: 'Sexe',
       sortable: true,
       render: (row) => (
         <Badge
-          bg={row.sexe === 'M' ? 'brand.50' : 'accent.50'}
-          color={row.sexe === 'M' ? 'brand.700' : 'accent.500'}
+          bg={row.gender === 'garçon' ? 'brand.50' : 'accent.50'}
+          color={row.gender === 'garçon' ? 'brand.700' : 'accent.500'}
           borderRadius="full"
           px={2.5}
         >
-          {GENDER_LABEL[row.sexe]}
+          {row.gender}
         </Badge>
       ),
     },
-    { key: 'dateNaissance', label: 'Naissance', sortable: true, render: (row) => formatDate(row.dateNaissance) },
+    { key: 'birthday', label: 'Naissance', sortable: true, render: (row) => formatDate(row.birthday) },
     {
-      key: 'niveau',
+      key: 'classe',
       label: 'Niveau',
       sortable: true,
       render: (row) => (
@@ -136,7 +152,7 @@ export default function Students() {
         </Badge>
       ),
     },
-    { key: 'localisation', label: 'Localisation' },
+    { key: 'address', label: 'Localisation' },
   ];
 
   return (

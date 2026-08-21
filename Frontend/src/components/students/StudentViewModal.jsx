@@ -28,8 +28,8 @@ function Field({ label, value }) {
 export default function StudentViewModal({ isOpen, onClose, student, onEdit }) {
   if (!student) return null;
 
-  const age = student.dateNaissance
-    ? Math.floor((Date.now() - new Date(student.dateNaissance).getTime()) / (365.25 * 24 * 3600 * 1000))
+  const age = student.birthday
+    ? Math.floor((Date.now() - new Date(student.birthday).getTime()) / (365.25 * 24 * 3600 * 1000))
     : null;
 
   return (
@@ -38,13 +38,13 @@ export default function StudentViewModal({ isOpen, onClose, student, onEdit }) {
       <ModalContent borderRadius="2xl" mx={4}>
         <ModalHeader borderBottom="1px solid" borderColor="ink.100">
           <HStack spacing={3}>
-            <Avatar name={`${student.prenom} ${student.nom}`} bg="brand.600" color="white" />
+            <Avatar name={`${student.last_name} ${student.name}`} bg="brand.600" color="white" />
             <VStack spacing={0} align="flex-start">
               <Text fontFamily="heading" fontWeight="700" color="ink.900">
-                {student.prenom} {student.nom}
+                {student.last_name} {student.name}
               </Text>
               <Badge bg="brand.50" color="brand.700" borderRadius="full" px={2} fontSize="10px">
-                {student.niveau}
+                {student.classe}
               </Badge>
             </VStack>
           </HStack>
@@ -52,10 +52,10 @@ export default function StudentViewModal({ isOpen, onClose, student, onEdit }) {
         <ModalCloseButton />
         <ModalBody py={5}>
           <SimpleGrid columns={2} spacing={5}>
-            <Field label="Sexe" value={student.sexe === 'M' ? 'Garçon' : 'Fille'} />
+            <Field label="Sexe" value={student.gender} />
             <Field label="Âge" value={age ? `${age} ans` : '—'} />
-            <Field label="Date de naissance" value={student.dateNaissance} />
-            <Field label="Localisation" value={student.localisation} />
+            <Field label="Date de naissance" value={student.birthday} />
+            <Field label="Localisation" value={student.address} />
           </SimpleGrid>
 
           <Divider my={4} borderColor="ink.100" />
@@ -64,10 +64,10 @@ export default function StudentViewModal({ isOpen, onClose, student, onEdit }) {
             Informations parents
           </Text>
           <SimpleGrid columns={2} spacing={5}>
-            <Field label="Nom du père" value={student.nomPere} />
-            <Field label="Nom de la mère" value={student.nomMere} />
-            <Field label="Téléphone du père" value={student.telephonePere} />
-            <Field label="Téléphone de la mère" value={student.telephoneMere} />
+            <Field label="Nom du père" value={student.father_name} />
+            <Field label="Nom de la mère" value={student.mother_name} />
+            <Field label="Téléphone du père" value={student.father_phone} />
+            <Field label="Téléphone de la mère" value={student.mother_phone} />
           </SimpleGrid>
         </ModalBody>
         <ModalFooter borderTop="1px solid" borderColor="ink.100" gap={2}>
