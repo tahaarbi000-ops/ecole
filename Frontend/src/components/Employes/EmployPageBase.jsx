@@ -17,9 +17,9 @@ import PageHeader from '../common/PageHeader';
 import SearchBar from '../common/SearchBar';
 import DataTable from '../common/DataTable';
 import ConfirmDialog from '../common/ConfirmDialog';
-import StaffFormModal from './StaffFormModal';
-import StaffViewModal from './StaffViewModal';
+import EmployViewModal from './EmployViewModal';
 import { AxiosToken } from '../../api/Api';
+import EmployFormModal from './EmployFormModal';
 
 const STATUS_COLORS = {
   actif: { bg: 'positive.50', color: 'positive.600' },
@@ -32,19 +32,6 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('fr-FR');
 }
 
-// row[roleFieldKey] can show up in a few shapes depending on the page:
-// a plain string ('role'), an array of strings, or (as the API returns
-// for teachers) an array of { label } objects. Normalize all of them
-// into a flat array of display strings.
-function toRoleValues(raw) {
-  if (Array.isArray(raw)) {
-    return raw
-      .map((v) => (typeof v === 'string' ? v : v?.label))
-      .filter(Boolean);
-  }
-  return raw ? [raw] : [];
-}
-
 /**
  * Page générique de gestion du personnel — encapsule toute la logique CRUD
  * (recherche, filtre, tri, pagination, ajout/modification/suppression, toasts)
@@ -53,13 +40,13 @@ function toRoleValues(raw) {
  * @param {string} pageTitle          Ex: "Maîtres"
  * @param {string} entityLabel        Ex: "un maître" (utilisé dans les libellés de formulaire)
  * @param {Array}  initialData
- * @param {string} roleFieldKey       'subject', 'matieres' ou 'role'
- * @param {string} roleFieldLabel     'Matières' ou 'Rôle'
+ * @param {string} roleFieldKey       'matiere' ou 'role'
+ * @param {string} roleFieldLabel     'Matière' ou 'Rôle'
  * @param {Array}  roleOptions
  * @param {boolean} [showStatus]
  * @param {Array}  [statusOptions]
  */
-export default function StaffPageBase({
+export default function EmployPageBase({
   pageTitle,
   entityLabel,
   initialData,
@@ -84,9 +71,9 @@ export default function StaffPageBase({
   useEffect(() => {
   const loadPeople = async () => {
     try {
-      const data = await AxiosToken.get("/teacher");
+      const data = await AxiosToken.get("/employ");
 
-      setPeople(data.data.teachers);
+      setPeople(data.data.employs);
     } catch (error) {
       console.error('Error loading personnel:', error);
 
@@ -110,17 +97,12 @@ export default function StaffPageBase({
 
   const filteredPeople = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return people
-      .filter((p) => {
-        const matchesSearch = !term || `${p.nom} ${p.prenom} ${p.telephone}`.toLowerCase().includes(term);
-        const matchesRole = !roleFilter || toRoleValues(p[roleFieldKey]).includes(roleFilter);
-        const matchesStatus = !statusFilter || p.statut === statusFilter;
-        return matchesSearch && matchesRole && matchesStatus;
-      })
-      // display-only sequential number (1, 2, 3…) — independent of the
-      // underlying record id, computed after filtering so it always
-      // reflects what's currently shown.
-      .map((p, idx) => ({ ...p, displayNumber: idx + 1 }));
+    return people.filter((p) => {
+      const matchesSearch = !term || `${p.nom} ${p.prenom} ${p.telephone}`.toLowerCase().includes(term);
+      const matchesRole = !roleFilter || p[roleFieldKey] === roleFilter;
+      const matchesStatus = !statusFilter || p.statut === statusFilter;
+      return matchesSearch && matchesRole && matchesStatus;
+    });
   }, [people, search, roleFilter, statusFilter, roleFieldKey]);
 
   const openAddModal = () => { setSelectedPerson(null); formModal.onOpen(); };
@@ -133,7 +115,7 @@ export default function StaffPageBase({
 
     try {
         const response = await AxiosToken.post(
-            "/teacher",
+            "/employ",
             formData
         );
 
@@ -159,36 +141,19 @@ export default function StaffPageBase({
   };
 
   const columns = [
-    {
-      key: 'displayNumber',
-      label: '#',
-      render: (row) => row.displayNumber,
-    },
+    { key: 'id', label: 'ID', sortable: true },
     { key: 'name', label: 'Nom', sortable: true },
     { key: 'last_name', label: 'Prénom', sortable: true },
     { key: 'phone', label: 'Téléphone' },
     {
-      key: 'subject',
-      label: "Matiére",
+      key: roleFieldKey,
+      label: roleFieldLabel,
       sortable: true,
-      render: (row) => {
-        const values = row.subject;
-        console.log(values)
-
-        if (!values.length) {
-          return <Text color="ink.400" fontSize="sm">—</Text>;
-        }
-
-        return (
-          <Wrap spacing={1}>
-            {values.map((v) => (
-              <Badge key={v} bg="ink.100" color="ink.700" borderRadius="full" px={2.5} fontWeight="600">
-                {v.label}
-              </Badge>
-            ))}
-          </Wrap>
-        );
-      },
+      render: (row) => (
+        <Badge bg="ink.100" color="ink.700" borderRadius="full" px={2.5} fontWeight="600">
+          {row[roleFieldKey]}
+        </Badge>
+      ),
     },
     { key: 'date_deposited', label: 'Date dépôt salaire', sortable: true, render: (row) => formatDate(row.date_deposited) },
     {
@@ -204,10 +169,10 @@ export default function StaffPageBase({
           label: 'Statut',
           sortable: true,
           render: (row) => {
-            const c = STATUS_COLORS[row.status] || { bg: 'ink.100', color: 'ink.700', };
+            const c = STATUS_COLORS[row.statut] || { bg: 'ink.100', color: 'ink.700' };
             return (
               <Badge bg={c.bg} color={c.color} borderRadius="full" px={2.5}>
-                {row.status}
+                {row.statut}
               </Badge>
             );
           },
@@ -307,7 +272,7 @@ export default function StaffPageBase({
         )}
       />
 
-      <StaffFormModal
+      <EmployFormModal
         isOpen={formModal.isOpen}
         onClose={formModal.onClose}
         onSubmit={handleSubmit}
@@ -321,7 +286,7 @@ export default function StaffPageBase({
         statusOptions={statusOptions}
       />
 
-      <StaffViewModal
+      <EmployViewModal
         isOpen={viewModal.isOpen}
         onClose={viewModal.onClose}
         person={selectedPerson}

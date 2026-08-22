@@ -4,10 +4,10 @@
 // ---------------------------------------------------------------------------
 
 export const supervisorRoles = [
-  'Surveillant général',
-  'Surveillant de cour',
-  'Surveillant d\u2019étude',
-  'Responsable discipline',
+  'surveillant général',
+  'surveillant de cour',
+  'surveillant d\u2019étude',
+  'responsable discipline',
 ];
 
 export const supervisors = [

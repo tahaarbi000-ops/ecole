@@ -17,7 +17,7 @@ const Teacher  = sequelize.define("teachers",{
         type:DataTypes.STRING,
     },
     salary :{
-        type:DataTypes.NUMBER,
+        type: DataTypes.DECIMAL(10, 2),
     },
     date_deposited:{
         type:DataTypes.DATEONLY,

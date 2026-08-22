@@ -303,6 +303,11 @@ export default function StudentFormModal({
                   name="birthday"
                   value={values.birthday}
                   onChange={handleChange}
+                  max={new Date(
+                  new Date().setFullYear(new Date().getFullYear() - 5)
+                )
+                  .toISOString()
+                  .split("T")[0]}
                 />
 
                 <FormErrorMessage>

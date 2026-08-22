@@ -16,7 +16,7 @@ export const subjects = [
   'Informatique',
 ];
 
-export const teacherStatuses = ['Actif', 'En congé', 'Inactif'];
+export const teacherStatuses = ['actif', 'en congé', 'inactif'];
 
 export const teachers = [
   {

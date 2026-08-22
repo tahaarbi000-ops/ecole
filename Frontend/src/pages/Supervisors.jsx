@@ -1,9 +1,10 @@
 import StaffPageBase from '../components/staff/StaffPageBase';
+import SupervisorsPageBase from '../components/supervisors/SupervisorsPageBase';
 import { supervisors, supervisorRoles } from '../data/supervisors';
 
 export default function Supervisors() {
   return (
-    <StaffPageBase
+    <SupervisorsPageBase
       pageTitle="Surveillants"
       entityLabel="un surveillant"
       initialData={supervisors}

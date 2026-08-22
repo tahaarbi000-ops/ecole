@@ -27,7 +27,7 @@ function Field({ label, value }) {
 
 export default function StudentViewModal({ isOpen, onClose, student, onEdit }) {
   if (!student) return null;
-
+  console.log(student.birthday)
   const age = student.birthday
     ? Math.floor((Date.now() - new Date(student.birthday).getTime()) / (365.25 * 24 * 3600 * 1000))
     : null;

@@ -20,7 +20,7 @@ const Supervisor  = sequelize.define("supervisors",{
         type:DataTypes.ENUM("surveillant général","surveillant de cour","surveillant d'étude","responsable discipline"),
     },
     salary :{
-        type:DataTypes.NUMBER,
+        type:DataTypes.DECIMAL(10, 2),
     },
     date_deposited:{
         type:DataTypes.DATEONLY,

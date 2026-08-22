@@ -56,7 +56,7 @@ export default function Students() {
       }
     }
     fetchData()
-  },[])
+  },[isSaving])
 
   const filteredStudents = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -64,7 +64,7 @@ export default function Students() {
       const matchesSearch =
         !term ||
         `${s.name} ${s.last_name} ${s.address}`.toLowerCase().includes(term);
-      const matchesLevel = !levelFilter || s.classe === levelFilter;
+      const matchesLevel = !levelFilter || s.class === levelFilter;
       const matchesGender = !genderFilter || s.gender === genderFilter;
       return matchesSearch && matchesLevel && matchesGender;
     });
@@ -109,7 +109,6 @@ export default function Students() {
         setIsSaving(false);
     }
 };
-console.log(isSaving)
 
   const handleDelete = () => {
     setIsDeleting(true);
@@ -143,12 +142,12 @@ console.log(isSaving)
     },
     { key: 'birthday', label: 'Naissance', sortable: true, render: (row) => formatDate(row.birthday) },
     {
-      key: 'classe',
+      key: 'class',
       label: 'Niveau',
       sortable: true,
       render: (row) => (
         <Badge bg="ink.100" color="ink.700" borderRadius="full" px={2.5} fontWeight="600">
-          {row.niveau}
+          {row.class}
         </Badge>
       ),
     },

@@ -9,16 +9,6 @@ import {
   Button,
   InputGroup,
   InputRightElement,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuOptionGroup,
-  MenuItemOption,
-  Wrap,
-  WrapItem,
-  Tag,
-  TagLabel,
-  TagCloseButton,
 } from '@chakra-ui/react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
@@ -28,9 +18,9 @@ const EMPTY_FORM = {
   name: '',
   last_name: '',
   phone: '',
-  matieres: [],
   date_deposited: '',
   salary: '',
+  role: '',
   status: 'actif',
 };
 
@@ -48,11 +38,6 @@ const validationSchema = Yup.object({
     .required('Le téléphone est requis.')
     .matches(/^\d{8}$/, 'Le numéro doit contenir 8 chiffres.'),
 
-  matieres: Yup.array()
-    .of(Yup.string())
-    .min(1, 'Sélectionnez au moins une matière.')
-    .required('Les matières sont requises.'),
-
   date_deposited: Yup.date()
     .required('La date est requise.')
     .typeError('Date invalide.'),
@@ -68,15 +53,22 @@ const validationSchema = Yup.object({
       'Statut invalide.'
     )
     .required('Le statut est requis.'),
+  role: Yup.string()
+    .oneOf(
+      ["surveillant général","surveillant de cour","surveillant d'étude","responsable discipline"],
+      'Rôle invalide.'
+    )
+    .required('Le rôle est requis.'),
 });
 
-export default function StaffFormModal({
+export default function SupervisorsFormModal({
   isOpen,
   onClose,
   onSubmit,
   person = null,
   isSaving = false,
   entityLabel,
+  roleFieldKey,
   roleFieldLabel,
   roleOptions,
   showStatus = false,
@@ -101,17 +93,10 @@ export default function StaffFormModal({
   useEffect(() => {
     if (isOpen) {
       if (person) {
-        const personMatieres = person.matieres;
-
         formik.setValues({
           ...EMPTY_FORM,
           ...person,
           salary: person.salary ?? '',
-          matieres: Array.isArray(personMatieres)
-            ? personMatieres
-            : personMatieres
-            ? [personMatieres]
-            : [],
         });
       } else {
         formik.resetForm({
@@ -123,15 +108,6 @@ export default function StaffFormModal({
       }
     }
   }, [isOpen, person]);
-
-  const selectedMatieres = formik.values.matieres || [];
-
-  const removeMatiere = (opt) => {
-    formik.setFieldValue(
-      'matieres',
-      selectedMatieres.filter((v) => v !== opt)
-    );
-  };
 
   return (
     <FormModal
@@ -240,64 +216,33 @@ export default function StaffFormModal({
             </FormErrorMessage>
           </FormControl>
 
-          {/* Matières — multi-select */}
+          {/* Role / matière */}
           <FormControl
-            isInvalid={
-              formik.touched.matieres &&
-              Boolean(formik.errors.matieres)
+          isInvalid={
+              formik.touched.role &&
+              Boolean(formik.errors.role)
             }
             isRequired
           >
             <FormLabel fontSize="sm">
-              {roleFieldLabel || 'Matières'}
+              Rôle
             </FormLabel>
 
-            <Menu closeOnSelect={false}>
-              <MenuButton
-                as={Button}
-                variant="outline"
-                fontWeight="normal"
-                w="100%"
-                textAlign="left"
-                onBlur={() => formik.setFieldTouched('matieres', true)}
-              >
-                {selectedMatieres.length
-                  ? `${selectedMatieres.length} sélectionnée(s)`
-                  : 'Sélectionner matière(s)'}
-              </MenuButton>
-
-              <MenuList maxH="240px" overflowY="auto" zIndex="popover">
-                <MenuOptionGroup
-                  type="checkbox"
-                  value={selectedMatieres}
-                  onChange={(vals) =>
-                    formik.setFieldValue('matieres', vals)
-                  }
-                >
-                  {roleOptions.map((opt) => (
-                    <MenuItemOption key={opt} value={opt}>
-                      {opt}
-                    </MenuItemOption>
-                  ))}
-                </MenuOptionGroup>
-              </MenuList>
-            </Menu>
-
-            {selectedMatieres.length > 0 && (
-              <Wrap mt={2}>
-                {selectedMatieres.map((opt) => (
-                  <WrapItem key={opt}>
-                    <Tag size="sm" borderRadius="full">
-                      <TagLabel>{opt}</TagLabel>
-                      <TagCloseButton onClick={() => removeMatiere(opt)} />
-                    </Tag>
-                  </WrapItem>
-                ))}
-              </Wrap>
-            )}
-
+            <Select
+              name="role"
+              placeholder={`Sélectionner rôle`}
+              value={formik.values.role || ''}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+            >
+              {roleOptions.map((opt) => (
+                <option key={opt} value={opt}>
+                  {opt}
+                </option>
+              ))}
+            </Select>
             <FormErrorMessage>
-              {formik.errors.matieres}
+              {formik.errors.role}
             </FormErrorMessage>
           </FormControl>
 

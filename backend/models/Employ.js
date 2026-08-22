@@ -20,7 +20,7 @@ const Employ  = sequelize.define("employs",{
         type:DataTypes.ENUM("secrétaire","comptable","chauffeur","agent de nettoyage","agent de sécurité"),
     },
     salary :{
-        type:DataTypes.NUMBER,
+        type:DataTypes.DECIMAL(10, 2),
     },
     date_deposited:{
         type:DataTypes.DATEONLY,

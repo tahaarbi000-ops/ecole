@@ -23,13 +23,13 @@ exports.createStudent = [
     body("father_phone")
         .optional({ checkFalsy: true })
         .trim()
-        .matches(/^\d[\d\s]{8,}$/)
+        .matches(/^\d{8}$/)
         .withMessage("Invalid father phone number."),
 
     body("mother_phone")
         .optional({ checkFalsy: true })
         .trim()
-        .matches(/^\d[\d\s]{8,}$/)
+        .matches(/^\d{8}$/)
         .withMessage("Invalid mother phone number."),
 
     body("gender")
@@ -75,6 +75,7 @@ exports.createStudent = [
                 gender,
                 birthday
             } = req.body;
+            console.log(classe)
 
             const student = await Student.create({
                 name,
@@ -85,7 +86,7 @@ exports.createStudent = [
                 mother_phone,
                 gender,
                 birthday,
-                classe,
+                class:classe,
                 address,
             });
 

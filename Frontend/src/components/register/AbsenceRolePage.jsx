@@ -22,6 +22,10 @@ function formatDate(iso) {
  * @param {string} secondaryFieldKey  'niveau' | 'matiere' | 'role'
  * @param {string} secondaryFieldLabel
  * @param {Array}  secondaryOptions
+ * @param {Array}  [students]         Optionnel — à passer uniquement pour la page "Élèves".
+ *                                    Transmis tel quel à AbsenceRoleFormModal pour activer
+ *                                    le mode Classe → Élève (voir ce composant pour le détail).
+ *                                    Sans cette prop, comportement inchangé (Input libre).
  */
 export default function AbsenceRolePage({
   personLabel,
@@ -29,6 +33,7 @@ export default function AbsenceRolePage({
   secondaryFieldKey,
   secondaryFieldLabel,
   secondaryOptions,
+  students,
 }) {
   const toast = useToast();
   const [items, setItems] = useState(initialData);
@@ -159,6 +164,7 @@ export default function AbsenceRolePage({
         )}
       />
 
+
       <AbsenceRoleFormModal
         isOpen={formModal.isOpen}
         onClose={formModal.onClose}
@@ -169,6 +175,7 @@ export default function AbsenceRolePage({
         secondaryFieldKey={secondaryFieldKey}
         secondaryFieldLabel={secondaryFieldLabel}
         secondaryOptions={secondaryOptions}
+        students={students}
       />
 
       <ConfirmDialog

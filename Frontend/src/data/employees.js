@@ -4,12 +4,11 @@
 // ---------------------------------------------------------------------------
 
 export const employeeRoles = [
-  'Secrétaire',
-  'Comptable',
-  'Chauffeur',
-  'Agent de nettoyage',
-  'Agent administratif',
-  'Technicien',
+  'secrétaire',
+  'comptable',
+  'chauffeur',
+  'agent de nettoyage',
+  "agent de sécurité"
 ];
 
 export const employees = [
