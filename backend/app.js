@@ -5,11 +5,13 @@ const StudentRouter = require("./routers/StudentRouter")
 const TeacherRouter = require("./routers/TeacherRouter")
 const SupervisorRouter = require("./routers/SupervisorRouter")
 const EmployRouter = require("./routers/EmployRouter")
+const AbsenceRouter = require("./routers/AbsenceRouter")
 
 router.use("/auth",AuthRouter)
 router.use("/student",StudentRouter)
 router.use("/teacher",TeacherRouter)
 router.use("/supervisor",SupervisorRouter)
 router.use("/employ",EmployRouter)
+router.use("/absence",AbsenceRouter)
 
 module.exports = router

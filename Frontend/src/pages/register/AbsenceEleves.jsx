@@ -10,6 +10,9 @@ export default function AbsenceEleves() {
       secondaryFieldKey="niveau"
       secondaryFieldLabel="Niveau"
       secondaryOptions={levels}
+      personsEndpoint="/student"
+      personsMode="students"
+      personsResponseKey="students"
     />
   );
 }

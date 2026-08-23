@@ -10,6 +10,9 @@ export default function AbsenceEmployes() {
       secondaryFieldKey="role"
       secondaryFieldLabel="Rôle"
       secondaryOptions={employeeRoles}
+      personsEndpoint="/employ"
+      personsMode="search"
+      personsResponseKey="employs"
     />
   );
 }

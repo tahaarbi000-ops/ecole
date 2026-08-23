@@ -10,6 +10,9 @@ export default function AbsenceMaitres() {
       secondaryFieldKey="matiere"
       secondaryFieldLabel="Matière"
       secondaryOptions={subjects}
+      personsEndpoint="/teacher"
+      personsMode="search"
+      personsResponseKey="teachers"
     />
   );
 }

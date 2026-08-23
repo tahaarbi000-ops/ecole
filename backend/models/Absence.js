@@ -17,7 +17,7 @@ const Absence  = sequelize.define("absences",{
         type:DataTypes.BOOLEAN,
     },
     person_type:{
-        type:DataTypes.ENUM("employé","élève","surveillants"),
+        type:DataTypes.ENUM("employé","élève","surveillants","maître"),
     },
     
     person_id:{

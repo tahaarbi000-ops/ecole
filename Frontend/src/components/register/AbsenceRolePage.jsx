@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Box, Button, HStack, Select, Badge, IconButton, Tooltip, useToast, useDisclosure, Text, Wrap } from '@chakra-ui/react';
 import { Plus, Pencil, Trash2, CheckCircle2, XCircle } from 'lucide-react';
 import SearchBar from '../common/SearchBar';
@@ -6,6 +6,7 @@ import DataTable from '../common/DataTable';
 import ConfirmDialog from '../common/ConfirmDialog';
 import AbsenceSubNav from './AbsenceSubNav';
 import AbsenceRoleFormModal from './AbsenceRoleFormModal';
+import { AxiosToken } from '../../api/Api';
 
 function formatDate(iso) {
   if (!iso) return '—';
@@ -22,10 +23,21 @@ function formatDate(iso) {
  * @param {string} secondaryFieldKey  'niveau' | 'matiere' | 'role'
  * @param {string} secondaryFieldLabel
  * @param {Array}  secondaryOptions
- * @param {Array}  [students]         Optionnel — à passer uniquement pour la page "Élèves".
- *                                    Transmis tel quel à AbsenceRoleFormModal pour activer
- *                                    le mode Classe → Élève (voir ce composant pour le détail).
- *                                    Sans cette prop, comportement inchangé (Input libre).
+ *
+ * @param {string} [personsEndpoint]  Optionnel — endpoint GET (ex: "/student", "/teacher") pour
+ *                                    charger la liste utilisée par le modal. SANS cette prop :
+ *                                    aucun fetch, Input libre (legacy) — donc ne pas la mettre
+ *                                    pour une page qui n'est pas encore migrée.
+ * @param {'students'|'search'} [personsMode]
+ *                                    'students' -> Élève : niveau (auto, depuis .class) +
+ *                                                  recherche par nom filtrée par niveau.
+ *                                                  Transmis au modal via `students`.
+ *                                    'search'   -> Maîtres / Surveillants / Employés : recherche
+ *                                                  par nom directe, sans select secondaire.
+ *                                                  Transmis au modal via `persons`.
+ * @param {string} [personsResponseKey] Optionnel — clé dans response.data contenant le tableau
+ *                                      (ex: "students", "teachers"). Sans elle : response.data
+ *                                      utilisé directement s'il est un tableau, sinon response.data.data.
  */
 export default function AbsenceRolePage({
   personLabel,
@@ -33,7 +45,9 @@ export default function AbsenceRolePage({
   secondaryFieldKey,
   secondaryFieldLabel,
   secondaryOptions,
-  students,
+  personsEndpoint,
+  personsMode,
+  personsResponseKey,
 }) {
   const toast = useToast();
   const [items, setItems] = useState(initialData);
@@ -43,9 +57,36 @@ export default function AbsenceRolePage({
   const [toDelete, setToDelete] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [personsData, setPersonsData] = useState([]);
 
   const formModal = useDisclosure();
   const deleteDialog = useDisclosure();
+
+ 
+  useEffect(() => {
+    if (!personsEndpoint) return; // page non migrée -> pas de fetch, comportement legacy inchangé
+
+    Promise.all([
+      AxiosToken.get(personsEndpoint),
+      AxiosToken.get(`absence${personsEndpoint}`),
+    ])
+      .then(([legacyResponse, absenceResponse]) => {
+        const legacyList = personsResponseKey
+          ? legacyResponse.data[personsResponseKey]
+          : (Array.isArray(legacyResponse.data) ? legacyResponse.data : legacyResponse.data.data);
+
+        const absenceList = personsResponseKey
+          ? absenceResponse.data[personsResponseKey]
+          : (Array.isArray(absenceResponse.data) ? absenceResponse.data : absenceResponse.data.data);
+
+       
+        setPersonsData(Array.isArray(legacyList) ? legacyList : []);
+        setItems(absenceList)
+      })
+      .catch(() => {
+        console.error(`Erreur lors du chargement de la liste — ${personLabel}`);
+      });
+  }, [personsEndpoint, personsResponseKey, personLabel, isSaving]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -60,20 +101,20 @@ export default function AbsenceRolePage({
   const openEdit = (a) => { setSelected(a); formModal.onOpen(); };
   const askDelete = (a) => { setToDelete(a); deleteDialog.onOpen(); };
 
-  const handleSubmit = (formData) => {
+  const handleSubmit = async (formData) => {
+    if (!personsEndpoint) return;
+    try{
     setIsSaving(true);
-    setTimeout(() => {
-      if (selected) {
-        setItems((prev) => prev.map((a) => (a.id === selected.id ? { ...a, ...formData } : a)));
-        toast({ title: 'Absence modifiée', status: 'success', duration: 3000, isClosable: true });
-      } else {
-        const newItem = { ...formData, id: Math.max(0, ...items.map((a) => a.id)) + 1 };
-        setItems((prev) => [newItem, ...prev]);
-        toast({ title: 'Absence enregistrée', status: 'success', duration: 3000, isClosable: true });
-      }
-      setIsSaving(false);
-      formModal.onClose();
-    }, 600);
+        const response = await AxiosToken.post(`absence${personsEndpoint}`,formData);
+        formModal.onClose()
+    }catch{
+
+        console.error("error")
+    }finally{
+      setIsSaving(false)
+    }
+
+   
   };
 
   const handleDelete = () => {
@@ -100,16 +141,16 @@ export default function AbsenceRolePage({
       ),
     },
     { key: 'date', label: 'Date', sortable: true, render: (row) => formatDate(row.date) },
-    { key: 'motif', label: 'Motif' },
+    { key: 'reason', label: 'Motif' },
     {
-      key: 'justifiee',
+      key: 'justification',
       label: 'Justification',
       sortable: true,
       render: (row) => (
         <HStack spacing={1.5}>
-          {row.justifiee ? <CheckCircle2 size={15} color="var(--chakra-colors-positive-500)" /> : <XCircle size={15} color="var(--chakra-colors-danger-500)" />}
-          <Text fontSize="sm" color={row.justifiee ? 'positive.600' : 'danger.500'} fontWeight="600">
-            {row.justifiee ? 'Justifiée' : 'Non justifiée'}
+          {row.justification ? <CheckCircle2 size={15} color="var(--chakra-colors-positive-500)" /> : <XCircle size={15} color="var(--chakra-colors-danger-500)" />}
+          <Text fontSize="sm" color={row.justification ? 'positive.600' : 'danger.500'} fontWeight="600">
+            {row.justification ? 'Justifiée' : 'Non justifiée'}
           </Text>
         </HStack>
       ),
@@ -164,7 +205,6 @@ export default function AbsenceRolePage({
         )}
       />
 
-
       <AbsenceRoleFormModal
         isOpen={formModal.isOpen}
         onClose={formModal.onClose}
@@ -175,7 +215,8 @@ export default function AbsenceRolePage({
         secondaryFieldKey={secondaryFieldKey}
         secondaryFieldLabel={secondaryFieldLabel}
         secondaryOptions={secondaryOptions}
-        students={students}
+        students={personsMode === 'students' ? personsData : undefined}
+        persons={personsMode === 'search' ? personsData : undefined}
       />
 
       <ConfirmDialog

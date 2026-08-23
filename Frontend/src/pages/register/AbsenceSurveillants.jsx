@@ -10,6 +10,9 @@ export default function AbsenceSurveillants() {
       secondaryFieldKey="role"
       secondaryFieldLabel="Rôle"
       secondaryOptions={supervisorRoles}
+      personsEndpoint="/supervisor"
+      personsMode="search"
+      personsResponseKey="supervisors"
     />
   );
 }
