@@ -5,8 +5,6 @@ import PageHeader from '../components/common/PageHeader';
 
 const SUB_NAV = [
   { label: 'Absences', to: '/register/absences', icon: CalendarX2, matchPrefix: '/register/absences' },
-  { label: 'Retards', to: '/register/late', icon: Clock3 },
-  { label: 'Observations', to: '/register/observations', icon: MessageSquareText },
   { label: 'Maîtres — Entrées/Sorties', to: '/register/teacher-movements', icon: DoorOpen },
 ];
 

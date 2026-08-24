@@ -4,6 +4,7 @@ const Absence = require("../models/Absence");
 const Teacher = require("../models/Teacher");
 const Supervisor = require("../models/Supervisor");
 const Employ = require("../models/Employ");
+const Subject = require("../models/Subject");
 
 exports.createStudentAbsence = [
     body("reason")
@@ -306,7 +307,7 @@ exports.getAllAbsenceStudent = async (req, res) => {
             order: [["createdAt", "DESC"]],
         });
 
-        const students = await Promise.all(
+        const persons = await Promise.all(
             absences.map(async (absence) => {
 
                 const student = await Student.findByPk(absence.person_id);
@@ -321,7 +322,7 @@ exports.getAllAbsenceStudent = async (req, res) => {
 
                 return {
                     ...absence.toJSON(),
-                    student: {
+                    person: {
                         id: student.id,
                         name: student.name,
                         last_name: student.last_name,
@@ -333,7 +334,7 @@ exports.getAllAbsenceStudent = async (req, res) => {
 
         return res.status(200).json({
             message: "Absence students retrieved successfully.",
-            students,
+            persons,
         });
 
     } catch (error) {
@@ -347,13 +348,41 @@ exports.getAllAbsenceStudent = async (req, res) => {
 
 exports.getAllAbsenceSupervisor = async (req, res) => {
     try {
-        const supervisors = await Supervisor.findAll({
+        const absences = await Absence.findAll({
+             where: {
+                person_type: "surveillants"
+            },
             order: [["createdAt", "DESC"]],
         });
 
+        const persons = await Promise.all(
+            absences.map(async (absence) => {
+
+                const supervisor = await Supervisor.findByPk(absence.person_id);
+
+                if (!supervisor) {
+                    return {
+                        ...absence.toJSON(),
+                        supervisor: null
+                    };
+                }
+
+
+                return {
+                    ...absence.toJSON(),
+                    person: {
+                        id: supervisor.id,
+                        name: supervisor.name,
+                        last_name: supervisor.last_name,
+                        role: supervisor.role
+                    }
+                };
+            })
+        );
+
         return res.status(200).json({
             message: "Absence supervisors retrieved successfully.",
-            supervisors,
+            persons,
         });
 
     } catch (error) {
@@ -367,13 +396,44 @@ exports.getAllAbsenceSupervisor = async (req, res) => {
 
 exports.getAllAbsenceTeacher = async (req, res) => {
     try {
-        const teachers = await Teacher.findAll({
+        const absences = await Absence.findAll({
+             where: {
+                person_type: "maître"
+            },
             order: [["createdAt", "DESC"]],
         });
 
+        const persons = await Promise.all(
+            absences.map(async (absence) => {
+
+                const teacher = await Teacher.findByPk(absence.person_id,{
+                    include:[{
+                        model:Subject,
+                        as:"subject"
+                    }]
+                });
+
+                if (!teacher) {
+                    return {
+                        ...absence.toJSON(),
+                        teacher: null
+                    };
+                }
+                return {
+                    ...absence.toJSON(),
+                    person: {
+                        id: teacher.id,
+                        name: teacher.name,
+                        last_name: teacher.last_name,
+                        subjects: teacher.subject.map(subject => subject.label)
+                    }
+                };
+            })
+        );
+
         return res.status(200).json({
             message: "Absence teacher retrieved successfully.",
-            employs,
+            persons,
         });
 
     } catch (error) {
@@ -387,13 +447,41 @@ exports.getAllAbsenceTeacher = async (req, res) => {
 
 exports.getAllAbsenceEmploys = async (req, res) => {
     try {
-        const employs = await Absence.findAll({
+        const absences = await Absence.findAll({
+             where: {
+                person_type: "employé"
+            },
             order: [["createdAt", "DESC"]],
         });
 
+        const persons = await Promise.all(
+            absences.map(async (absence) => {
+
+                const employ = await Employ.findByPk(absence.person_id);
+
+                if (!employ) {
+                    return {
+                        ...absence.toJSON(),
+                        employ: null
+                    };
+                }
+
+
+                return {
+                    ...absence.toJSON(),
+                    person: {
+                        id: employ.id,
+                        name: employ.name,
+                        last_name: employ.last_name,
+                        role: employ.role
+                    }
+                };
+            })
+        );
+
         return res.status(200).json({
             message: "Absence employs retrieved successfully.",
-            employs,
+            persons,
         });
 
     } catch (error) {

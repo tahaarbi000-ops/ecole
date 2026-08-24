@@ -1,106 +1,222 @@
-import { useEffect, useState } from 'react';
-import { SimpleGrid, FormControl, FormLabel, FormErrorMessage, Input, Select, Button, Textarea } from '@chakra-ui/react';
+import { useEffect, useMemo, useState } from 'react';
+import { Formik, Form, Field } from 'formik';
+import * as Yup from 'yup';
+import {
+  SimpleGrid,
+  FormControl,
+  FormLabel,
+  FormErrorMessage,
+  Input,
+  Select,
+  Button,
+  Textarea,
+} from '@chakra-ui/react';
 import FormModal from '../common/FormModal';
-import { movementDirections } from '../../data/register';
+import { AxiosToken } from '../../api/Api';
 
-const EMPTY_FORM = { date: '', heure: '', nom: '', prenom: '', sens: '', remarque: '' };
+const SENSE_OPTIONS = [
+  { value: 'entrée', label: 'Entrée' },
+  { value: 'sortie', label: 'Sortie' },
+];
+
+const EMPTY_VALUES = {
+  date: '',
+  time: '',
+  sense: '',
+  justification: '',
+  teacher_id: '',
+  noticed: '',
+};
+
+const validationSchema = Yup.object({
+  date: Yup.string().required('La date est requise.'),
+  time: Yup.string()
+    .required('L\u2019heure est requise.')
+    .matches(/^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/, 'Heure invalide.'),
+  sense: Yup.string()
+    .required('Le sens est requis.')
+    .oneOf(SENSE_OPTIONS.map((o) => o.value), 'Sens invalide.'),
+  justification: Yup.string().required('La justification est requise.'),
+  teacher_id: Yup.number()
+    .typeError('Le maître est requis.')
+    .required('Le maître est requis.')
+    .integer('Identifiant de maître invalide.'),
+  noticed: Yup.string().max(255, 'Ne doit pas dépasser 255 caractères.'),
+});
 
 /**
- * Formulaire modal pour le pointage des maîtres (entrée ou sortie).
- * Le registre général d'entrées/sorties a été retiré ; seul ce suivi
- * dédié aux maîtres est conservé.
+ * Formulaire modal pour le pointage/scoring des maîtres (entrée ou sortie).
+ * Les champs correspondent à ceux attendus par le contrôleur createScoring.
  */
-export default function TeacherMovementFormModal({ isOpen, onClose, onSubmit, movement = null, isSaving = false }) {
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [errors, setErrors] = useState({});
-  const isEditMode = Boolean(movement);
+export default function TeacherScoringFormModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  scoring = null,
+  isSaving = false,
+}) {
+  const isEditMode = Boolean(scoring);
+  const [teachers,setTeachers] = useState([])
 
-  useEffect(() => {
-    if (isOpen) {
-      setForm(movement ? { ...EMPTY_FORM, ...movement } : EMPTY_FORM);
-      setErrors({});
+    useEffect(() => {
+    const loadPeople = async () => {
+      try {
+        const data = await AxiosToken.get("/teacher");
+  
+        setTeachers(data.data.teachers);
+      } catch (error) {
+        console.error('Error loading personnel:', error);
+    };
     }
-  }, [isOpen, movement]);
+    loadPeople();
+  }, [isSaving]);
 
-  const setField = (field) => (e) => {
-    const value = e?.target ? e.target.value : e;
-    setForm((f) => ({ ...f, [field]: value }));
-  };
+  const initialValues = useMemo(
+    () => ({
+      ...EMPTY_VALUES,
+      ...(scoring
+        ? {
+            ...scoring,
+            justification:
+              scoring.justification === true || scoring.justification === false
+                ? String(scoring.justification)
+                : scoring.justification ?? '',
+          }
+        : {}),
+    }),
+    [scoring]
+  );
 
-  const validate = () => {
-    const next = {};
-    if (!form.date) next.date = 'La date est requise.';
-    if (!form.heure) next.heure = 'L\u2019heure est requise.';
-    if (!form.nom.trim()) next.nom = 'Le nom est requis.';
-    if (!form.prenom.trim()) next.prenom = 'Le prénom est requis.';
-    if (!form.sens) next.sens = 'Le sens est requis.';
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!validate()) return;
-    onSubmit(form);
+  const handleSubmit = (values, { setSubmitting }) => {
+    onSubmit({
+      ...values,
+      teacher_id: Number(values.teacher_id),
+      justification: values.justification === 'true',
+    });
+    setSubmitting(false);
   };
 
   return (
-    <FormModal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={isEditMode ? 'Modifier le pointage' : 'Enregistrer un pointage — Maître'}
-      footer={
-        <>
-          <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={handleSubmit} isLoading={isSaving} loadingText="Enregistrement…">
-            {isEditMode ? 'Enregistrer' : 'Ajouter'}
-          </Button>
-        </>
-      }
-      size="lg"
+    <Formik
+      enableReinitialize
+      initialValues={initialValues}
+      validationSchema={validationSchema}
+      onSubmit={handleSubmit}
     >
-      <form onSubmit={handleSubmit} noValidate>
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-          <FormControl isInvalid={Boolean(errors.date)} isRequired>
-            <FormLabel fontSize="sm">Date</FormLabel>
-            <Input type="date" value={form.date} onChange={setField('date')} />
-            <FormErrorMessage>{errors.date}</FormErrorMessage>
-          </FormControl>
+      {({ values, errors, touched, handleChange, handleBlur, submitForm }) => (
+        <FormModal
+          isOpen={isOpen}
+          onClose={onClose}
+          title={isEditMode ? 'Modifier le pointage' : 'Enregistrer un pointage — Maître'}
+          footer={
+            <>
+              <Button variant="outline" onClick={onClose}>Annuler</Button>
+              <Button onClick={submitForm} isLoading={isSaving} loadingText="Enregistrement…">
+                {isEditMode ? 'Enregistrer' : 'Ajouter'}
+              </Button>
+            </>
+          }
+          size="lg"
+        >
+          <Form noValidate>
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+              <FormControl isInvalid={Boolean(touched.date && errors.date)} isRequired>
+                <FormLabel fontSize="sm">Date</FormLabel>
+                <Input
+                  type="date"
+                  name="date"
+                  value={values.date}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                />
+                <FormErrorMessage>{errors.date}</FormErrorMessage>
+              </FormControl>
 
-          <FormControl isInvalid={Boolean(errors.heure)} isRequired>
-            <FormLabel fontSize="sm">Heure</FormLabel>
-            <Input type="time" value={form.heure} onChange={setField('heure')} />
-            <FormErrorMessage>{errors.heure}</FormErrorMessage>
-          </FormControl>
+              <FormControl isInvalid={Boolean(touched.time && errors.time)} isRequired>
+                <FormLabel fontSize="sm">Heure</FormLabel>
+                <Input
+                  type="time"
+                  name="time"
+                  value={values.time}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                />
+                <FormErrorMessage>{errors.time}</FormErrorMessage>
+              </FormControl>
 
-          <FormControl isInvalid={Boolean(errors.nom)} isRequired>
-            <FormLabel fontSize="sm">Nom</FormLabel>
-            <Input value={form.nom} onChange={setField('nom')} placeholder="Ben Ali" />
-            <FormErrorMessage>{errors.nom}</FormErrorMessage>
-          </FormControl>
+              <FormControl isInvalid={Boolean(touched.teacher_id && errors.teacher_id)} isRequired>
+                <FormLabel fontSize="sm">Maître</FormLabel>
+                <Select
+                  name="teacher_id"
+                  placeholder="Sélectionner"
+                  value={values.teacher_id}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                >
+                  {teachers.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} {t.last_name} - {t.phone}
+                    </option>
+                  ))}
+                </Select>
+                <FormErrorMessage>{errors.teacher_id}</FormErrorMessage>
+              </FormControl>
 
-          <FormControl isInvalid={Boolean(errors.prenom)} isRequired>
-            <FormLabel fontSize="sm">Prénom</FormLabel>
-            <Input value={form.prenom} onChange={setField('prenom')} placeholder="Mohamed" />
-            <FormErrorMessage>{errors.prenom}</FormErrorMessage>
-          </FormControl>
+              <FormControl isInvalid={Boolean(touched.sense && errors.sense)} isRequired>
+                <FormLabel fontSize="sm">Sens</FormLabel>
+                <Select
+                  name="sense"
+                  placeholder="Sélectionner"
+                  value={values.sense}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                >
+                  {SENSE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </Select>
+                <FormErrorMessage>{errors.sense}</FormErrorMessage>
+              </FormControl>
 
-          <FormControl isInvalid={Boolean(errors.sens)} isRequired gridColumn={{ md: 'span 2' }}>
-            <FormLabel fontSize="sm">Sens</FormLabel>
-            <Select placeholder="Sélectionner" value={form.sens} onChange={setField('sens')}>
-              {movementDirections.map((d) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </Select>
-            <FormErrorMessage>{errors.sens}</FormErrorMessage>
-          </FormControl>
+              <FormControl
+                isInvalid={Boolean(touched.justification && errors.justification)}
+                isRequired
+                gridColumn={{ md: 'span 2' }}
+              >
+                <FormLabel fontSize="sm">Justification</FormLabel>
+                <Select
+                  name="justification"
+                  placeholder="Sélectionner"
+                  value={values.justification}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                >
+                  <option value="true">Justifié</option>
+                  <option value="false">Non justifié</option>
+                </Select>
+                <FormErrorMessage>{errors.justification}</FormErrorMessage>
+              </FormControl>
 
-          <FormControl gridColumn={{ md: 'span 2' }}>
-            <FormLabel fontSize="sm">Remarque</FormLabel>
-            <Textarea value={form.remarque} onChange={setField('remarque')} placeholder="Optionnel…" rows={3} />
-          </FormControl>
-        </SimpleGrid>
-      </form>
-    </FormModal>
+              <FormControl
+                isInvalid={Boolean(touched.noticed && errors.noticed)}
+                gridColumn={{ md: 'span 2' }}
+              >
+                <FormLabel fontSize="sm">Remarque</FormLabel>
+                <Field
+                  as={Textarea}
+                  name="noticed"
+                  value={values.noticed}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  placeholder="Optionnel…"
+                  rows={3}
+                />
+                <FormErrorMessage>{errors.noticed}</FormErrorMessage>
+              </FormControl>
+            </SimpleGrid>
+          </Form>
+        </FormModal>
+      )}
+    </Formik>
   );
 }

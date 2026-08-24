@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Box, Button, HStack, Select, Badge, IconButton, Tooltip, useToast, useDisclosure, Text, Wrap } from '@chakra-ui/react';
 import { Plus, Pencil, Trash2, LogIn, LogOut } from 'lucide-react';
 import SearchBar from '../../components/common/SearchBar';
@@ -6,10 +6,11 @@ import DataTable from '../../components/common/DataTable';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import TeacherMovementFormModal from '../../components/register/TeacherMovementFormModal';
 import { teacherMovements as initialMovements, movementDirections } from '../../data/register';
+import { AxiosToken } from '../../api/Api';
 
 const SENS_COLORS = {
-  Entrée: { bg: 'positive.50', color: 'positive.600', icon: LogIn },
-  Sortie: { bg: 'warning.50', color: 'warning.500', icon: LogOut },
+  entrée: { bg: 'positive.50', color: 'positive.600', icon: LogIn },
+  sortie: { bg: 'warning.50', color: 'warning.500', icon: LogOut },
 };
 
 function formatDate(iso) {
@@ -19,7 +20,7 @@ function formatDate(iso) {
 
 export default function TeacherMovements() {
   const toast = useToast();
-  const [movements, setMovements] = useState(initialMovements);
+  const [movements, setMovements] = useState([]);
   const [search, setSearch] = useState('');
   const [sensFilter, setSensFilter] = useState('');
   const [selected, setSelected] = useState(null);
@@ -43,20 +44,28 @@ export default function TeacherMovements() {
   const openEdit = (m) => { setSelected(m); formModal.onOpen(); };
   const askDelete = (m) => { setToDelete(m); deleteDialog.onOpen(); };
 
-  const handleSubmit = (formData) => {
-    setIsSaving(true);
-    setTimeout(() => {
-      if (selected) {
-        setMovements((prev) => prev.map((m) => (m.id === selected.id ? { ...m, ...formData } : m)));
-        toast({ title: 'Pointage modifié', status: 'success', duration: 3000, isClosable: true });
-      } else {
-        const newMovement = { ...formData, id: Math.max(0, ...movements.map((m) => m.id)) + 1 };
-        setMovements((prev) => [newMovement, ...prev]);
-        toast({ title: 'Pointage enregistré', status: 'success', duration: 3000, isClosable: true });
+  useEffect(()=>{
+    const dataFetch = async ()=> {
+      try{
+        const response = await AxiosToken.get("/scoring")
+        setMovements(response.data.scoring)
+      }catch{
+        console.error("error")
       }
-      setIsSaving(false);
-      formModal.onClose();
-    }, 600);
+    }
+    dataFetch()
+  },[isSaving])
+
+  const handleSubmit = async (formData) => {
+    setIsSaving(true);
+    try{
+      await AxiosToken.post("/scoring",formData)
+    }catch{
+
+    }finally{
+        setIsSaving(false)
+        formModal.onClose()
+    }
   };
 
   const handleDelete = () => {
@@ -72,24 +81,24 @@ export default function TeacherMovements() {
 
   const columns = [
     { key: 'date', label: 'Date', sortable: true, render: (row) => formatDate(row.date) },
-    { key: 'heure', label: 'Heure', sortable: true },
-    { key: 'nom', label: 'Nom', sortable: true },
-    { key: 'prenom', label: 'Prénom', sortable: true },
+    { key: 'time', label: 'Heure', sortable: true },
+    { key: 'name', label: 'Nom', sortable: true, render: (row) => row.scoringTeacher?.name },
+    { key: 'last_name', label: 'Prénom', sortable: true, render: (row) => row.scoringTeacher?.last_name},
     {
-      key: 'sens',
+      key: 'sense',
       label: 'Sens',
       sortable: true,
       render: (row) => {
-        const c = SENS_COLORS[row.sens] || SENS_COLORS.Entrée;
+        const c = SENS_COLORS[row.sense] || SENS_COLORS.entrée;
         return (
           <HStack spacing={1.5}>
             <c.icon size={13} color={`var(--chakra-colors-${c.color.replace('.', '-')})`} />
-            <Badge bg={c.bg} color={c.color} borderRadius="full" px={2.5}>{row.sens}</Badge>
+            <Badge textTransform={"capitalize"} bg={c.bg} color={c.color} borderRadius="full" px={2.5}>{row.sense}</Badge>
           </HStack>
         );
       },
     },
-    { key: 'remarque', label: 'Remarque', render: (row) => row.remarque || <Text color="ink.400">—</Text> },
+    { key: 'noticed', label: 'Remarque', render: (row) => row.remarque || <Text color="ink.400">—</Text> },
   ];
 
   return (

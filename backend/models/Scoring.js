@@ -8,11 +8,11 @@ const Scoring  = sequelize.define("scoring",{
         primaryKey:true,
         autoIncrement:true
     },
-    Noticed:{
+    noticed:{
         type:DataTypes.STRING,
     },
     sense:{
-        type:DataTypes.ENUM("entée","sortie"),
+        type:DataTypes.ENUM("entrée","sortie"),
     },
     date:{
         type:DataTypes.DATEONLY,

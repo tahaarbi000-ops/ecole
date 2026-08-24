@@ -50,7 +50,7 @@ export default function AbsenceRolePage({
   personsResponseKey,
 }) {
   const toast = useToast();
-  const [items, setItems] = useState(initialData);
+  const [items, setItems] = useState([]);
   const [search, setSearch] = useState('');
   const [secondaryFilter, setSecondaryFilter] = useState('');
   const [selected, setSelected] = useState(null);
@@ -64,7 +64,7 @@ export default function AbsenceRolePage({
 
  
   useEffect(() => {
-    if (!personsEndpoint) return; // page non migrée -> pas de fetch, comportement legacy inchangé
+    if (!personsEndpoint) return;
 
     Promise.all([
       AxiosToken.get(personsEndpoint),
@@ -75,9 +75,7 @@ export default function AbsenceRolePage({
           ? legacyResponse.data[personsResponseKey]
           : (Array.isArray(legacyResponse.data) ? legacyResponse.data : legacyResponse.data.data);
 
-        const absenceList = personsResponseKey
-          ? absenceResponse.data[personsResponseKey]
-          : (Array.isArray(absenceResponse.data) ? absenceResponse.data : absenceResponse.data.data);
+        const absenceList = absenceResponse.data.persons
 
        
         setPersonsData(Array.isArray(legacyList) ? legacyList : []);
@@ -129,14 +127,20 @@ export default function AbsenceRolePage({
   };
 
   const columns = [
-    { key: 'personne', label: personLabel, sortable: true },
+    { key: 'personne', label: personLabel, sortable: true,
+      render: (row) => `${row.person?.name ?? ''} ${row.person?.last_name ?? ''}`
+     },
     {
       key: secondaryFieldKey,
       label: secondaryFieldLabel,
       sortable: true,
       render: (row) => (
         <Badge bg="ink.100" color="ink.700" borderRadius="full" px={2.5}>
-          {row[secondaryFieldKey]}
+           {secondaryFieldKey === "niveau"
+        ? row.person?.class
+        : secondaryFieldKey === "matiere"
+        ? row.person?.subjects?.map(subject => subject).join(", ")
+        : row.person?.role}
         </Badge>
       ),
     },
