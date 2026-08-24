@@ -1,5 +1,6 @@
 const { validationResult, body } = require("express-validator");
 const Student = require("../models/Student");
+const { Subscription } = require("../models");
 
 exports.createStudent = [
     body("name")
@@ -89,6 +90,8 @@ exports.createStudent = [
                 class:classe,
                 address,
             });
+
+            await Subscription.create({amount:50,student_id:student.id,transport:false})
 
             return res.status(201).json({
                 message: "Student added successfully.",

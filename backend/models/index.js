@@ -1,5 +1,7 @@
 const Scoring = require("./Scoring");
+const Student = require("./Student");
 const Subject = require("./Subject");
+const Subscription = require("./Subscription");
 const Teacher = require("./Teacher");
 
 Teacher.hasMany(Subject,{
@@ -20,5 +22,14 @@ Scoring.belongsTo(Teacher,{
     as:"scoringTeacher"
 })
 
+Student.hasOne(Subscription,{
+    foreignKey:"student_id",
+    as:"subscription"
+})
+Subscription.belongsTo(Student,{
+    foreignKey:"student_id",
+    as:"student"
+})
 
-module.exports = {Teacher,Subject,Scoring}
+
+module.exports = {Teacher,Subject,Scoring,Student,Subscription}

@@ -10,7 +10,7 @@ require("./models/index")
 const port = process.env.PORT || 5000;
 
 sequelize.authenticate()
- sequelize.sync({ alter: false });
+ sequelize.sync({ alter: true });
 
 app.use(express.json());
 app.use(cors());

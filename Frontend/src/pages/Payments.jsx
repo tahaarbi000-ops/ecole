@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -13,20 +13,29 @@ import {
   Wrap,
   SimpleGrid,
   Icon,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  ModalCloseButton,
+  VStack,
+  Divider,
 } from '@chakra-ui/react';
-import { Plus, Pencil, Trash2, Wallet, CheckCircle2, Clock, CreditCard } from 'lucide-react';
+import { Plus, Wallet, CheckCircle2, Clock, CreditCard, History as HistoryIcon } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import SearchBar from '../components/common/SearchBar';
 import DataTable from '../components/common/DataTable';
-import ConfirmDialog from '../components/common/ConfirmDialog';
 import PaymentFormModal from '../components/payments/PaymentFormModal';
 import { payments as initialPayments, paymentStatuses } from '../data/payments';
 import { levels } from '../data/school';
+import { AxiosToken } from '../api/Api';
 
 const STATUS_COLORS = {
-  Payé: { bg: 'positive.50', color: 'positive.600' },
-  Partiel: { bg: 'accent.50', color: 'accent.500' },
-  'En attente': { bg: 'warning.50', color: 'warning.500' },
+  payé: { bg: 'positive.50', color: 'positive.600' },
+  "no payé": { bg: 'accent.50', color: 'accent.500' },
+  'en attente': { bg: 'warning.50', color: 'warning.500' },
 };
 
 function formatDate(iso) {
@@ -43,33 +52,46 @@ function formatMonthLabel(monthKey) {
 
 export default function Payments() {
   const toast = useToast();
-  const [payments, setPayments] = useState(initialPayments);
+  const [payments, setPayments] = useState([]);
 
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
-  const [selected, setSelected] = useState(null);
-  const [toDelete, setToDelete] = useState(null);
+  const [payTarget, setPayTarget] = useState(null);
+  const [historyStudent, setHistoryStudent] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
 
   const formModal = useDisclosure();
-  const deleteDialog = useDisclosure();
+  const payModal = useDisclosure();
+  const historyModal = useDisclosure();
+
+  useEffect(()=>{
+     const fetchData = async () => {
+       try{
+         const response = await AxiosToken.get("/subscription");
+         setPayments(response.data.subscriptions)
+       }catch{
+         console.error("error")
+       }
+     }
+     fetchData()
+   },[isSaving])
 
   const availableMonths = useMemo(() => {
-    const set = new Set(payments.map((p) => p.datePaiement.slice(0, 7)));
+    const set = new Set(payments.map((p) => p.createdAt.slice(0, 7)));
     return Array.from(set).sort().reverse();
   }, [payments]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return payments.filter((p) => {
-      const matchesSearch = !term || p.eleve.toLowerCase().includes(term);
-      const matchesLevel = !levelFilter || p.niveau === levelFilter;
-      const matchesMonth = !monthFilter || p.datePaiement.startsWith(monthFilter);
-      const matchesStatus = !statusFilter || p.statut === statusFilter;
+      const matchesSearch = !term || (p.student.name + " " +p.student.last_name ).toLowerCase().includes(term);
+      const matchesLevel = !levelFilter || p.student.class === levelFilter;
+      const matchesMonth = !monthFilter || p.createdAt.startsWith(monthFilter);
+      const matchesStatus = !statusFilter || p.status === statusFilter;
       return matchesSearch && matchesLevel && matchesMonth && matchesStatus;
     });
   }, [payments, search, levelFilter, monthFilter, statusFilter]);
@@ -79,76 +101,81 @@ export default function Payments() {
   const totalEncaisseCeMois = useMemo(
     () =>
       payments
-        .filter((p) => p.datePaiement.startsWith(currentMonthKey) && p.statut !== 'En attente')
-        .reduce((sum, p) => sum + p.montant, 0),
+        .filter((p) => p.createdAt.startsWith(currentMonthKey) && p.status !== 'en attente')
+        .reduce((sum, p) => sum + p.amount, 0),
     [payments, currentMonthKey]
   );
   const totalPayeFiltre = useMemo(
-    () => filtered.filter((p) => p.statut === 'Payé' || p.statut === 'Partiel').reduce((sum, p) => sum + p.montant, 0),
+    () => filtered.filter((p) => p.status === 'payé' || p.status === 'partiel').reduce((sum, p) => sum + p.amount, 0),
     [filtered]
   );
   const totalRestantFiltre = useMemo(
-    () => filtered.filter((p) => p.statut === 'En attente' || p.statut === 'Partiel').length,
+    () => filtered.filter((p) => p.status === 'en attente' || p.status === 'partiel').length,
     [filtered]
   );
 
-  const openAdd = () => { setSelected(null); formModal.onOpen(); };
-  const openEdit = (p) => { setSelected(p); formModal.onOpen(); };
-  const askDelete = (p) => { setToDelete(p); deleteDialog.onOpen(); };
+  // --- Historique d'un élève -------------------------------------------------
+  const historyRows = useMemo(() => {
+    if (!historyStudent) return [];
+    return payments
+      .filter((p) => p.eleve === historyStudent.eleve)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }, [payments, historyStudent]);
 
-  const handleSubmit = (formData) => {
+  const openAdd = () => { formModal.onOpen(); };
+  const askPay = (p) => { setPayTarget(p); payModal.onOpen(); };
+  const openHistory = (p) => { setHistoryStudent(p); historyModal.onOpen(); };
+
+  const handleCreateSubmit = (formData) => {
     setIsSaving(true);
     setTimeout(() => {
-      if (selected) {
-        setPayments((prev) => prev.map((p) => (p.id === selected.id ? { ...p, ...formData } : p)));
-        toast({ title: 'Paiement modifié', status: 'success', duration: 3000, isClosable: true });
-      } else {
-        const newPayment = { ...formData, id: Math.max(0, ...payments.map((p) => p.id)) + 1 };
-        setPayments((prev) => [newPayment, ...prev]);
-        toast({ title: 'Paiement enregistré', status: 'success', duration: 3000, isClosable: true });
-      }
+      const newPayment = { ...formData, id: Math.max(0, ...payments.map((p) => p.id)) + 1 };
+      setPayments((prev) => [newPayment, ...prev]);
+      toast({ title: 'Paiement enregistré', status: 'success', duration: 3000, isClosable: true });
       setIsSaving(false);
       formModal.onClose();
     }, 700);
   };
 
-  const handleDelete = () => {
-    setIsDeleting(true);
+  const handleConfirmPay = () => {
+    if (!payTarget) return;
+    setIsPaying(true);
     setTimeout(() => {
-      setPayments((prev) => prev.filter((p) => p.id !== toDelete.id));
-      toast({ title: 'Paiement supprimé', status: 'info', duration: 3000, isClosable: true });
-      setIsDeleting(false);
-      deleteDialog.onClose();
-      setToDelete(null);
+      setPayments((prev) =>
+        prev.map((p) => (p.id === payTarget.id ? { ...p, statut: 'Payé' } : p))
+      );
+      toast({
+        title: 'Paiement confirmé',
+        description: `${payTarget.eleve} — ${payTarget.montant.toLocaleString('fr-FR')} DT`,
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      setIsPaying(false);
+      payModal.onClose();
+      setPayTarget(null);
     }, 600);
   };
 
   const columns = [
     { key: 'id', label: 'ID', sortable: true },
-    { key: 'eleve', label: 'Élève', sortable: true },
-    { key: 'niveau', label: 'Niveau', sortable: true, render: (row) => <Badge bg="ink.100" color="ink.700" borderRadius="full" px={2.5}>{row.niveau}</Badge> },
-    { key: 'typePaiement', label: 'Type' },
-    { key: 'montant', label: 'Montant', sortable: true, isNumeric: true, render: (row) => `${row.montant.toLocaleString('fr-FR')} DT` },
-    { key: 'datePaiement', label: 'Date', sortable: true, render: (row) => formatDate(row.datePaiement) },
-    { key: 'modePaiement', label: 'Mode' },
+    { key: 'eleve', label: 'Élève', sortable: true, render: (row) => row.student.name + " " + row.student.last_name },
+    { key: 'class', label: 'Niveau', sortable: true, render: (row) => <Badge bg="ink.100" color="ink.700" borderRadius="full" px={2.5}>{row.student.class}</Badge> },
+    { key: 'montant', label: 'Montant', sortable: true, isNumeric: true, render: (row) => `${row.amount.toLocaleString('fr-FR')} DT` },
+    { key: 'datePaiement', label: 'Date', sortable: true, render: (row) => formatDate(row.createdAt) },
     {
-      key: 'statut',
+      key: 'status',
       label: 'Statut',
       sortable: true,
       render: (row) => {
-        const c = STATUS_COLORS[row.statut] || { bg: 'ink.100', color: 'ink.700' };
-        return <Badge bg={c.bg} color={c.color} borderRadius="full" px={2.5}>{row.statut}</Badge>;
+        const c = STATUS_COLORS[row.status] || { bg: 'ink.100', color: 'ink.700' };
+        return <Badge bg={c.bg} color={c.color} borderRadius="full" px={2.5}>{row.status}</Badge>;
       },
     },
   ];
 
   return (
     <Box>
-      <PageHeader
-        title="Paiements"
-        subtitle="Suivi des paiements scolaires — scolarité, transport, inscription."
-        actions={<Button leftIcon={<Plus size={17} />} onClick={openAdd}>Nouveau paiement</Button>}
-      />
 
       {/* Cartes statistiques */}
       <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={5} mb={6}>
@@ -182,7 +209,7 @@ export default function Payments() {
           <Text fontFamily="heading" fontSize="2xl" fontWeight="700" color="ink.900">
             {totalRestantFiltre}
           </Text>
-          <Text fontSize="xs" color="ink.400" mt={1}>Partiels + en attente (sélection)</Text>
+          <Text fontSize="xs" color="ink.400" mt={1}>En attente (sélection)</Text>
         </Box>
       </SimpleGrid>
 
@@ -253,32 +280,111 @@ export default function Payments() {
         emptyMessage="Aucun paiement ne correspond à ces critères."
         renderActions={(row) => (
           <HStack spacing={1}>
-            <Tooltip label="Modifier" hasArrow>
-              <IconButton aria-label="Modifier" icon={<Pencil size={16} />} size="sm" variant="ghost" onClick={() => openEdit(row)} />
+            <Tooltip label="Payer" hasArrow>
+              <IconButton
+                aria-label="Payer"
+                disabled={row.status === "payé"}
+                icon={<Wallet size={16} />}
+                size="sm"
+                variant="ghost"
+                color="positive.600"
+                _hover={{ bg: 'positive.50' }}
+                onClick={() => askPay(row)}
+              />
             </Tooltip>
-            <Tooltip label="Supprimer" hasArrow>
-              <IconButton aria-label="Supprimer" icon={<Trash2 size={16} />} size="sm" variant="ghost" color="danger.500" _hover={{ bg: 'danger.50' }} onClick={() => askDelete(row)} />
+            <Tooltip label="Historique" hasArrow>
+              <IconButton
+                aria-label="Historique"
+                icon={<HistoryIcon size={16} />}
+                size="sm"
+                variant="ghost"
+                onClick={() => openHistory(row)}
+              />
             </Tooltip>
           </HStack>
         )}
       />
 
+      {/* Formulaire — uniquement pour un nouveau paiement */}
       <PaymentFormModal
         isOpen={formModal.isOpen}
         onClose={formModal.onClose}
-        onSubmit={handleSubmit}
-        payment={selected}
+        onSubmit={handleCreateSubmit}
+        payment={null}
         isSaving={isSaving}
       />
 
-      <ConfirmDialog
-        isOpen={deleteDialog.isOpen}
-        onClose={deleteDialog.onClose}
-        onConfirm={handleDelete}
-        isLoading={isDeleting}
-        title="Supprimer ce paiement ?"
-        message={toDelete ? `Voulez-vous vraiment supprimer le paiement de ${toDelete.eleve} du ${formatDate(toDelete.datePaiement)} ?` : ''}
-      />
+      {/* Modal confirmation de paiement */}
+      <Modal isOpen={payModal.isOpen} onClose={payModal.onClose} isCentered size="sm">
+        <ModalOverlay />
+        <ModalContent borderRadius="xl">
+          <ModalHeader>Confirmer le paiement</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody>
+            <Text fontSize="sm" color="ink.600">
+              Voulez-vous confirmer le paiement pour{' '}
+              <Text as="span" fontWeight="700" color="ink.900">
+                {payTarget?.eleve}
+              </Text>{' '}
+              ?
+            </Text>
+            {payTarget && (
+              <Text fontSize="xs" color="ink.400" mt={2}>
+                {payTarget.montant.toLocaleString('fr-FR')} DT — {payTarget.niveau}
+              </Text>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" mr={3} onClick={payModal.onClose}>
+              Annuler
+            </Button>
+            <Button colorScheme="green" onClick={handleConfirmPay} isLoading={isPaying}>
+              Confirmer
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Modal Historique */}
+      <Modal isOpen={historyModal.isOpen} onClose={historyModal.onClose} size="lg">
+        <ModalOverlay />
+        <ModalContent borderRadius="xl">
+          <ModalHeader>
+            Historique des paiements
+            {historyStudent && (
+              <Text fontSize="sm" fontWeight="400" color="ink.500" mt={1}>
+                {historyStudent.eleve} — {historyStudent.niveau}
+              </Text>
+            )}
+          </ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            {historyRows.length === 0 ? (
+              <Text fontSize="sm" color="ink.500">Aucun paiement enregistré pour cet élève.</Text>
+            ) : (
+              <VStack align="stretch" spacing={0} divider={<Divider />}>
+                {historyRows.map((p) => {
+                  const c = STATUS_COLORS[p.statut] || { bg: 'ink.100', color: 'ink.700' };
+                  return (
+                    <HStack key={p.id} justify="space-between" py={3}>
+                      <Box>
+                        <Text fontSize="sm" fontWeight="600" color="ink.800">
+                          {p.montant.toLocaleString('fr-FR')} DT
+                        </Text>
+                        <Text fontSize="xs" color="ink.400">{formatDate(p.createdAt)}</Text>
+                      </Box>
+                      <Badge bg={c.bg} color={c.color} borderRadius="full" px={2.5}>{p.statut}</Badge>
+                    </HStack>
+                  );
+                })}
+              </VStack>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" onClick={historyModal.onClose}>Fermer</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Box>
   );
 }
