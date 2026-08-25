@@ -71,79 +71,7 @@ export default function Login() {
   return (
     <Flex minH="100vh" bg="ink.50">
       {/* Colonne gauche — présentation de l'école */}
-      <Flex
-        flex={1}
-        display={{ base: 'none', lg: 'flex' }}
-        position="relative"
-        bgGradient="linear(160deg, brand.700, brand.900)"
-        color="white"
-        direction="column"
-        justify="space-between"
-        p={12}
-        overflow="hidden"
-      >
-        {/* Décor géométrique discret */}
-        <Box
-          position="absolute"
-          top="-120px"
-          right="-120px"
-          w="360px"
-          h="360px"
-          borderRadius="full"
-          bg="whiteAlpha.100"
-        />
-        <Box
-          position="absolute"
-          bottom="-160px"
-          left="-100px"
-          w="420px"
-          h="420px"
-          borderRadius="full"
-          bg="whiteAlpha.50"
-        />
-
-        <Box position="relative" zIndex={1}>
-          <Logo variant="full" nameColor="white" size={44} />
-        </Box>
-
-        <VStack position="relative" zIndex={1} align="flex-start" spacing={6} maxW="440px">
-          <HStack spacing={2} bg="whiteAlpha.150" px={3} py={1.5} borderRadius="full">
-            <Sparkles size={14} />
-            <Text fontSize="xs" fontWeight="600">Année scolaire 2025 / 2026</Text>
-          </HStack>
-          <Text fontFamily="heading" fontSize="4xl" fontWeight="800" lineHeight="1.15">
-            École Privée Al Amal
-          </Text>
-          <Text fontSize="lg" color="whiteAlpha.800" lineHeight="1.5">
-            Construire aujourd’hui les réussites de demain.
-          </Text>
-
-          <VStack align="flex-start" spacing={4} pt={4} w="full">
-            {HIGHLIGHTS.map((h) => (
-              <HStack key={h.text} spacing={3}>
-                <Flex
-                  w="38px"
-                  h="38px"
-                  borderRadius="lg"
-                  bg="whiteAlpha.150"
-                  align="center"
-                  justify="center"
-                  flexShrink={0}
-                >
-                  <h.icon size={18} />
-                </Flex>
-                <Text fontSize="sm" color="whiteAlpha.900">
-                  {h.text}
-                </Text>
-              </HStack>
-            ))}
-          </VStack>
-        </VStack>
-
-        <Text position="relative" zIndex={1} fontSize="xs" color="whiteAlpha.600">
-          © {new Date().getFullYear()} École Privée Al Amal — Tous droits réservés.
-        </Text>
-      </Flex>
+     
 
       {/* Colonne droite — formulaire de connexion */}
       <Flex flex={1} align="center" justify="center" px={{ base: 6, md: 12 }} py={10}>
@@ -154,7 +82,7 @@ export default function Login() {
 
           <VStack align="flex-start" spacing={1}>
             <Text fontFamily="heading" fontSize="2xl" fontWeight="700" color="ink.900">
-              Bienvenue 👋
+              Bienvenue
             </Text>
             <Text fontSize="sm" color="ink.500">
               Connectez-vous pour accéder à votre espace d’administration.

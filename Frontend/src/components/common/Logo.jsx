@@ -39,7 +39,7 @@ export default function Logo({ variant = 'full', size = 40, nameColor = 'ink.900
       <LogoMark size={size} />
       <VStack spacing={0} align="flex-start" lineHeight="1.1">
         <Text fontFamily="heading" fontWeight="700" fontSize="md" color={nameColor}>
-          École Al Amal
+          École Mohamed Tayeb School
         </Text>
         <Text fontSize="xs" color="ink.400" fontWeight="500">
           Espace administration

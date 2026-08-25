@@ -4,12 +4,12 @@
 // ---------------------------------------------------------------------------
 
 export const schoolInfo = {
-  name: 'École Privée Al Amal',
+  name: 'École Privée Mohamed Tayeb School',
   slogan: 'Construire aujourd\u2019hui les réussites de demain.',
-  address: '12 Avenue Habib Bourguiba, Sousse, Tunisie',
+  address: 'Cité ELhouda - elfaouar',
   phone: '+216 73 200 145',
-  email: 'contact@ecole-alamal.tn',
-  director: 'Mme Faten Ben Romdhane',
+  email: 'contact@ecole.tn',
+  director: 'Mr Mohamed ben brahim',
   schoolYear: '2025 / 2026',
   totalStudents: 850,
 };

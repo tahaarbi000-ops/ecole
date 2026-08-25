@@ -63,41 +63,7 @@ export default function Header({ pageTitle, onOpenMobileMenu }) {
         </HStack>
 
         <HStack spacing={{ base: 2, md: 3 }}>
-          {showSearch && (
-            <InputGroup w="280px" size="sm">
-              <InputLeftElement pointerEvents="none" h="full" pl={1}>
-                <Search size={16} color="var(--chakra-colors-ink-400)" />
-              </InputLeftElement>
-              <Input
-                placeholder="Rechercher un élève, un maître…"
-                borderRadius="lg"
-                bg="ink.50"
-                border="1px solid"
-                borderColor="ink.200"
-                _focus={{ bg: 'white', borderColor: 'brand.400', boxShadow: '0 0 0 1px var(--chakra-colors-brand-400)' }}
-                _placeholder={{ color: 'ink.400' }}
-              />
-            </InputGroup>
-          )}
-
-          <Box position="relative">
-            <IconButton
-              aria-label="Notifications"
-              icon={<Bell size={19} />}
-              variant="ghost"
-              borderRadius="lg"
-            />
-            <Box
-              position="absolute"
-              top="6px"
-              right="6px"
-              w="8px"
-              h="8px"
-              borderRadius="full"
-              bg="danger.500"
-              border="2px solid white"
-            />
-          </Box>
+        
 
           <Menu placement="bottom-end">
             <MenuButton>

@@ -30,7 +30,7 @@ function getPageTitle(pathname) {
   if (pathname === '/register/observations') return 'Registre — Observations';
   if (pathname === '/register/teacher-movements') return 'Registre — Maîtres (Entrées/Sorties)';
   if (pathname.startsWith('/register')) return 'Registre';
-  return PAGE_TITLES[pathname] || 'École Al Amal';
+  return PAGE_TITLES[pathname] || 'École Mohamed Tayeb School';
 }
 
 export default function MainLayout() {
