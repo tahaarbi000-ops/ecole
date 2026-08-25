@@ -5,6 +5,7 @@ const sequelize = require("./config/db");
 const app = express();
 const appStart = require("./app");
 require("./models/index")
+const startScheduler = require("./jobs/scheduler");
 
 
 const port = process.env.PORT || 5000;
@@ -20,4 +21,5 @@ app.use("/api/v1", appStart);
 
 app.listen(port, async () => {
   console.log(`Server started on port ${port}`);
+  // startScheduler()
 });

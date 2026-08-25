@@ -7,23 +7,12 @@ const Zone  = sequelize.define("zone",{
         primaryKey:true,
         autoIncrement:true
     },
-    name:{
+    label:{
         type:DataTypes.STRING,
     },
-    last_name:{
-        type:DataTypes.STRING,
+    price:{
+        type:DataTypes.DOUBLE,
     },
-    email:{
-        type:DataTypes.STRING,
-        allowNull:false
-    },
-    password:{
-        type:DataTypes.STRING,
-        allowNull:false
-    },
-    role:{
-        type:DataTypes.STRING,
-        defaultValue:"admin"
-    },
+    
 })
 module.exports = Zone

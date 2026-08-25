@@ -17,6 +17,13 @@ import * as Yup from 'yup';
 import FormModal from '../common/FormModal';
 import { levels } from '../../data/school';
 
+// TODO: replace with zones fetched from API (Zone model: id, label, price)
+const DUMMY_ZONES = [
+  { id: 1, label: 'Zone A - Khezama' },
+  { id: 2, label: 'Zone B - Sahloul' },
+  { id: 3, label: 'Zone C - Hammam Sousse' },
+];
+
 const EMPTY_FORM = {
   name: '',
   last_name: '',
@@ -28,6 +35,8 @@ const EMPTY_FORM = {
   birthday: '',
   classe: '',
   address: '',
+  transport: 'non',
+  zone_id: '',
 };
 
 const studentSchema = Yup.object({
@@ -74,6 +83,17 @@ const studentSchema = Yup.object({
   address: Yup.string()
     .trim()
     .required('Address is required.'),
+
+  transport: Yup.string()
+    .oneOf(['oui', 'non'], 'Invalid transport value.')
+    .required('Transport is required.'),
+
+  zone_id: Yup.string()
+    .when('transport', {
+      is: 'oui',
+      then: (schema) => schema.required('Zone is required when transport is enabled.'),
+      otherwise: (schema) => schema.notRequired(),
+    }),
 });
 
 export default function StudentFormModal({
@@ -148,7 +168,7 @@ export default function StudentFormModal({
                 isRequired
               >
                 <FormLabel fontSize="sm">
-                  Name
+                  Nom
                 </FormLabel>
 
                 <Input
@@ -169,7 +189,7 @@ export default function StudentFormModal({
                 isRequired
               >
                 <FormLabel fontSize="sm">
-                  Last name
+                  Prénom
                 </FormLabel>
 
                 <Input
@@ -187,7 +207,7 @@ export default function StudentFormModal({
               {/* Father */}
               <FormControl>
                 <FormLabel fontSize="sm">
-                  Father's name
+                  Nom de pére
                 </FormLabel>
 
                 <Input
@@ -201,7 +221,7 @@ export default function StudentFormModal({
               {/* Mother */}
               <FormControl>
                 <FormLabel fontSize="sm">
-                  Mother's name
+                  Nom de mére
                 </FormLabel>
 
                 <Input
@@ -220,7 +240,7 @@ export default function StudentFormModal({
                 }
               >
                 <FormLabel fontSize="sm">
-                  Father's phone
+                  Numéro de téléphone du père
                 </FormLabel>
 
                 <Input
@@ -243,7 +263,8 @@ export default function StudentFormModal({
                 }
               >
                 <FormLabel fontSize="sm">
-                  Mother's phone
+                  Numéro de téléphone du mére
+
                 </FormLabel>
 
                 <Input
@@ -261,7 +282,7 @@ export default function StudentFormModal({
               {/* Gender */}
               <FormControl isRequired>
                 <FormLabel fontSize="sm">
-                  Gender
+                  Genre
                 </FormLabel>
 
                 <RadioGroup
@@ -295,7 +316,7 @@ export default function StudentFormModal({
                 isRequired
               >
                 <FormLabel fontSize="sm">
-                  Date of birth
+                  Date de naissance
                 </FormLabel>
 
                 <Input
@@ -324,12 +345,12 @@ export default function StudentFormModal({
                 isRequired
               >
                 <FormLabel fontSize="sm">
-                  Class
+                  Niveau
                 </FormLabel>
 
                 <Select
                   name="classe"
-                  placeholder="Select a class"
+                  placeholder="Sélectionnez une classe"
                   value={values.classe}
                   onChange={handleChange}
                 >
@@ -348,6 +369,71 @@ export default function StudentFormModal({
                 </FormErrorMessage>
               </FormControl>
 
+              {/* Transport */}
+              <FormControl isRequired>
+                <FormLabel fontSize="sm">
+                  Transport
+                </FormLabel>
+
+                <RadioGroup
+                  value={values.transport}
+                  onChange={(value) => {
+                    setFieldValue('transport', value);
+                    if (value === 'non') {
+                      setFieldValue('zone_id', '');
+                    }
+                  }}
+                >
+                  <HStack spacing={5} h="40px">
+                    <Radio value="oui" colorScheme="blue">
+                      Oui
+                    </Radio>
+
+                    <Radio value="non" colorScheme="blue">
+                      Non
+                    </Radio>
+                  </HStack>
+                </RadioGroup>
+
+                <FormErrorMessage>
+                  {errors.transport}
+                </FormErrorMessage>
+              </FormControl>
+
+              {/* Zone (only relevant when transport is enabled) */}
+              <FormControl
+                isInvalid={
+                  touched.zone_id &&
+                  errors.zone_id
+                }
+                isRequired={values.transport === 'oui'}
+                isDisabled={values.transport !== 'oui'}
+              >
+                <FormLabel fontSize="sm">
+                  Zone
+                </FormLabel>
+
+                <Select
+                  name="zone_id"
+                  placeholder="Sélectionnez une zone"
+                  value={values.zone_id}
+                  onChange={handleChange}
+                >
+                  {DUMMY_ZONES.map((zone) => (
+                    <option
+                      key={zone.id}
+                      value={zone.id}
+                    >
+                      {zone.label}
+                    </option>
+                  ))}
+                </Select>
+
+                <FormErrorMessage>
+                  {errors.zone_id}
+                </FormErrorMessage>
+              </FormControl>
+
               {/* Address */}
               <FormControl
                 isInvalid={
@@ -358,7 +444,7 @@ export default function StudentFormModal({
                 gridColumn={{ md: 'span 2' }}
               >
                 <FormLabel fontSize="sm">
-                  Address
+                  Adresse
                 </FormLabel>
 
                 <Input
