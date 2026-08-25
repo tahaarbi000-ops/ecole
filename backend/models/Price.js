@@ -8,6 +8,9 @@ const Price  = sequelize.define("price",{
         primaryKey:true,
         autoIncrement:true
     },
+    label:{
+        type:DataTypes.STRING,
+    },
     price:{
         type:DataTypes.DOUBLE,
     },

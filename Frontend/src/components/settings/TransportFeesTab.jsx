@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Table,
@@ -20,14 +20,27 @@ import { Plus, Pencil, Trash2, Bus } from 'lucide-react';
 import ConfirmDialog from '../common/ConfirmDialog';
 import TransportFeeFormModal from './TransportFeeFormModal';
 import { transportFees as initialFees } from '../../data/school';
+import { AxiosToken } from '../../api/Api';
 
 export default function TransportFeesTab() {
   const toast = useToast();
-  const [fees, setFees] = useState(initialFees);
+  const [fees, setFees] = useState([]);
   const [selected, setSelected] = useState(null);
   const [toDelete, setToDelete] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(()=>{
+    const fetchData = async () => {
+      try{
+        const response = await AxiosToken.get("/zone");
+        setFees(response.data.zones)
+      }catch{
+        console.error("error")
+      }
+    }
+    fetchData()
+  },[isSaving])
 
   const formModal = useDisclosure();
   const deleteDialog = useDisclosure();
@@ -36,20 +49,25 @@ export default function TransportFeesTab() {
   const openEdit = (fee) => { setSelected(fee); formModal.onOpen(); };
   const askDelete = (fee) => { setToDelete(fee); deleteDialog.onOpen(); };
 
-  const handleSubmit = (formData) => {
+  const handleSubmit = async (formData) => {
+    
     setIsSaving(true);
-    setTimeout(() => {
-      if (selected) {
-        setFees((prev) => prev.map((f) => (f.id === selected.id ? { ...f, ...formData } : f)));
-        toast({ title: 'Zone modifiée', status: 'success', duration: 3000, isClosable: true });
-      } else {
-        const newFee = { ...formData, id: Math.max(0, ...fees.map((f) => f.id)) + 1 };
-        setFees((prev) => [...prev, newFee]);
-        toast({ title: 'Zone ajoutée', status: 'success', duration: 3000, isClosable: true });
-      }
-      setIsSaving(false);
-      formModal.onClose();
-    }, 600);
+             try {
+                const response = await AxiosToken.post(
+                    "/zone",
+                     formData
+                 );
+         
+                 resetForm();
+         
+                 formModal.onClose();
+         
+             } catch (error) {
+                 console.error(error);
+             } finally {
+                 setIsSaving(false);
+             }
+
   };
 
   const handleDelete = () => {
@@ -93,7 +111,7 @@ export default function TransportFeesTab() {
             )}
             {fees.map((fee) => (
               <Tr key={fee.id} _hover={{ bg: 'ink.50' }}>
-                <Td fontWeight="500" color="ink.800">{fee.zone}</Td>
+                <Td fontWeight="500" color="ink.800">{fee.label}</Td>
                 <Td isNumeric fontWeight="600" color="ink.900">{fee.amount.toLocaleString('fr-FR')} DT</Td>
                 <Td>
                   <HStack justify="flex-end" spacing={1}>

@@ -1,68 +1,158 @@
-import { useEffect, useState } from 'react';
-import { SimpleGrid, FormControl, FormLabel, FormErrorMessage, Input, Button, InputGroup, InputRightElement } from '@chakra-ui/react';
+import { useEffect } from 'react';
+import {
+  SimpleGrid,
+  FormControl,
+  FormLabel,
+  FormErrorMessage,
+  Input,
+  Button,
+  InputGroup,
+  InputRightElement,
+} from '@chakra-ui/react';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
+
 import FormModal from '../common/FormModal';
 
-const EMPTY_FORM = { zone: '', amount: '' };
+const EMPTY_FORM = {
+  label: '',
+  amount: '',
+};
 
-export default function TransportFeeFormModal({ isOpen, onClose, onSubmit, fee = null, isSaving = false }) {
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [errors, setErrors] = useState({});
+const validationSchema = Yup.object({
+  label: Yup.string()
+    .trim()
+    .required('Le nom de la zone est requis.'),
+
+  amount: Yup.number()
+    .typeError('Le tarif doit être un nombre.')
+    .positive('Le tarif doit être positif.')
+    .required('Le tarif est requis.'),
+});
+
+export default function TransportFeeFormModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  fee = null,
+  isSaving = false,
+}) {
   const isEditMode = Boolean(fee);
+
+  const formik = useFormik({
+    initialValues: EMPTY_FORM,
+    validationSchema,
+
+    onSubmit: (values) => {
+      onSubmit({
+        ...values,
+        amount: Number(values.amount),
+      });
+    },
+  });
 
   useEffect(() => {
     if (isOpen) {
-      setForm(fee ? { ...EMPTY_FORM, ...fee } : EMPTY_FORM);
-      setErrors({});
+      formik.setValues(
+        fee
+          ? {
+              label: fee.zone ?? '',
+              amount: fee.amount ?? '',
+            }
+          : EMPTY_FORM
+      );
+
+      formik.setTouched({});
+      formik.setErrors({});
     }
   }, [isOpen, fee]);
 
-  const setField = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
-
-  const validate = () => {
-    const next = {};
-    if (!form.zone.trim()) next.zone = 'Le nom de la zone est requis.';
-    if (!form.amount || Number(form.amount) <= 0) next.amount = 'Le tarif doit être positif.';
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!validate()) return;
-    onSubmit({ ...form, amount: Number(form.amount) });
+  const handleClose = () => {
+    formik.resetForm();
+    onClose();
   };
 
   return (
     <FormModal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={isEditMode ? 'Modifier la zone' : 'Ajouter une zone'}
       footer={
         <>
-          <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={handleSubmit} isLoading={isSaving} loadingText="Enregistrement…">
+          <Button variant="outline" onClick={handleClose}>
+            Annuler
+          </Button>
+
+          <Button
+            onClick={formik.handleSubmit}
+            isLoading={isSaving}
+            loadingText="Enregistrement…"
+          >
             {isEditMode ? 'Enregistrer' : 'Ajouter'}
           </Button>
         </>
       }
       size="md"
     >
-      <form onSubmit={handleSubmit} noValidate>
+      <form onSubmit={formik.handleSubmit} noValidate>
         <SimpleGrid columns={1} spacing={4}>
-          <FormControl isInvalid={Boolean(errors.zone)} isRequired>
-            <FormLabel fontSize="sm">Zone</FormLabel>
-            <Input value={form.zone} onChange={setField('zone')} placeholder="Zone 5" />
-            <FormErrorMessage>{errors.zone}</FormErrorMessage>
+
+          {/* Zone */}
+          <FormControl
+            isInvalid={formik.touched.label && Boolean(formik.errors.label)}
+            isRequired
+          >
+            <FormLabel fontSize="sm">
+              label
+            </FormLabel>
+
+            <Input
+              name="label"
+              value={formik.values.label}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              placeholder="Zone 5"
+            />
+
+            <FormErrorMessage>
+              {formik.errors.label}
+            </FormErrorMessage>
           </FormControl>
 
-          <FormControl isInvalid={Boolean(errors.amount)} isRequired>
-            <FormLabel fontSize="sm">Tarif mensuel</FormLabel>
+          {/* Amount */}
+          <FormControl
+            isInvalid={formik.touched.amount && Boolean(formik.errors.amount)}
+            isRequired
+          >
+            <FormLabel fontSize="sm">
+              Tarif mensuel
+            </FormLabel>
+
             <InputGroup>
-              <Input type="number" min="0" value={form.amount} onChange={setField('amount')} placeholder="100" />
-              <InputRightElement w="3.2rem" color="ink.400" fontSize="sm">DT</InputRightElement>
+              <Input
+                name="amount"
+                type="number"
+                min="0"
+                value={formik.values.amount}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                placeholder="100"
+              />
+
+              <InputRightElement
+                w="3.2rem"
+                color="ink.400"
+                fontSize="sm"
+              >
+                DT
+              </InputRightElement>
             </InputGroup>
-            <FormErrorMessage>{errors.amount}</FormErrorMessage>
+
+            <FormErrorMessage>
+              {formik.errors.amount}
+            </FormErrorMessage>
           </FormControl>
+
         </SimpleGrid>
       </form>
     </FormModal>

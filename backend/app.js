@@ -8,6 +8,8 @@ const EmployRouter = require("./routers/EmployRouter")
 const AbsenceRouter = require("./routers/AbsenceRouter")
 const ScoringRouter = require("./routers/ScoringRouter")
 const SubscriptionRouter = require("./routers/SubscriptionRouter")
+const PriceRouter = require("./routers/PriceRouter")
+const ZoneRouter = require("./routers/ZoneRouter")
 
 router.use("/auth",AuthRouter)
 router.use("/student",StudentRouter)
@@ -17,5 +19,7 @@ router.use("/employ",EmployRouter)
 router.use("/absence",AbsenceRouter)
 router.use("/scoring",ScoringRouter)
 router.use("/subscription",SubscriptionRouter)
+router.use("/price",PriceRouter)
+router.use("/zone",ZoneRouter)
 
 module.exports = router

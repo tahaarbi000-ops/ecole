@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Table,
@@ -18,11 +18,24 @@ import {
 } from '@chakra-ui/react';
 import { Save } from 'lucide-react';
 import { tuitionFees as initialFees } from '../../data/school';
+import { AxiosToken } from '../../api/Api';
 
 export default function TuitionFeesTab() {
   const toast = useToast();
-  const [fees, setFees] = useState(initialFees);
+  const [fees, setFees] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(()=>{
+      const fetchData = async () => {
+        try{
+          const response = await AxiosToken.get("/price");
+          setFees(response.data.price)
+        }catch{
+          console.error("error")
+        }
+      }
+      fetchData()
+    },[isSaving])
 
   const updateAmount = (id, value) => {
     setFees((prev) => prev.map((f) => (f.id === id ? { ...f, amount: value } : f)));
@@ -47,20 +60,20 @@ export default function TuitionFeesTab() {
           <Thead>
             <Tr>
               <Th>Niveau</Th>
-              <Th isNumeric>Tarif annuel</Th>
+              <Th isNumeric>Frais mensuels</Th>
             </Tr>
           </Thead>
           <Tbody>
             {fees.map((fee) => (
               <Tr key={fee.id}>
-                <Td fontWeight="500" color="ink.800">{fee.level}</Td>
+                <Td fontWeight="500" color="ink.800">{fee.label}</Td>
                 <Td isNumeric>
                   <InputGroup size="sm" maxW="150px" ml="auto">
                     <Input
                       type="number"
                       min="0"
                       textAlign="right"
-                      value={fee.amount}
+                      value={fee.price}
                       onChange={(e) => updateAmount(fee.id, Number(e.target.value))}
                       borderRadius="lg"
                     />

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   SimpleGrid,
   FormControl,
@@ -16,6 +16,7 @@ import * as Yup from 'yup';
 
 import FormModal from '../common/FormModal';
 import { levels } from '../../data/school';
+import { AxiosToken } from '../../api/Api';
 
 // TODO: replace with zones fetched from API (Zone model: id, label, price)
 const DUMMY_ZONES = [
@@ -103,6 +104,19 @@ export default function StudentFormModal({
   student = null,
   isSaving = false,
 }) {
+  const [zones,setZones] = useState([])
+
+  useEffect(()=>{
+      const fetchData = async () => {
+        try{
+          const response = await AxiosToken.get("/zone");
+          setZones(response.data.zones)
+        }catch(err){
+          console.error("error",err)
+        }
+      }
+      fetchData()
+    },[isSaving])
   const isEditMode = Boolean(student);
 
   const initialValues = student
@@ -419,7 +433,7 @@ export default function StudentFormModal({
                   value={values.zone_id}
                   onChange={handleChange}
                 >
-                  {DUMMY_ZONES.map((zone) => (
+                  {zones.map((zone) => (
                     <option
                       key={zone.id}
                       value={zone.id}

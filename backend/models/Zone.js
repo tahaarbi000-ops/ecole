@@ -10,7 +10,7 @@ const Zone  = sequelize.define("zone",{
     label:{
         type:DataTypes.STRING,
     },
-    price:{
+    amount:{
         type:DataTypes.DOUBLE,
     },
     
