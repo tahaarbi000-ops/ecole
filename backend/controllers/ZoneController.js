@@ -18,6 +18,17 @@ exports.createZone = [
             }
             return true;
         }),
+    body("amount_yearly")
+        .notEmpty()
+        .withMessage("amount yearly is required.")
+        .isNumeric()
+        .withMessage("amount yearly must be a number.")
+        .custom((value) => {
+            if (Number(value) < 0) {
+                throw new Error("Amount yearly cannot be negative.");
+            }
+            return true;
+        }),
 
     async (req, res) => {
         try {
@@ -33,11 +44,13 @@ exports.createZone = [
             const {
                 label,
                 amount,
+                amount_yearly
             } = req.body;
 
             const zone = await Zone.create({
                 label,
                 amount,
+                amount_yearly
             });
             return res.status(201).json({
                 message: "Zone added successfully.",

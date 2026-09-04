@@ -20,15 +20,15 @@ export default function ConfirmDialog({
   onConfirm,
   title = 'Confirmer la suppression',
   message = 'Cette action est irréversible. Voulez-vous continuer ?',
-  confirmLabel = 'Supprimer',
+  confirmLabel = 'حذف',
   isLoading = false,
 }) {
   const cancelRef = useRef();
 
   return (
-    <AlertDialog isOpen={isOpen} leastDestructiveRef={cancelRef} onClose={onClose} isCentered>
+    <AlertDialog  isOpen={isOpen} leastDestructiveRef={cancelRef} onClose={onClose} isCentered>
       <AlertDialogOverlay>
-        <AlertDialogContent borderRadius="xl" mx={4}>
+        <AlertDialogContent dir='rtl' borderRadius="xl" mx={4}>
           <AlertDialogHeader fontFamily="heading" fontSize="lg" fontWeight="700" color="ink.900">
             {title}
           </AlertDialogHeader>
@@ -37,7 +37,7 @@ export default function ConfirmDialog({
           </AlertDialogBody>
           <AlertDialogFooter>
             <Button ref={cancelRef} onClick={onClose} variant="outline">
-              Annuler
+              إلغاء
             </Button>
             <Button colorScheme="red" bg="danger.500" _hover={{ bg: 'red.600' }} onClick={onConfirm} ml={3} isLoading={isLoading}>
               {confirmLabel}

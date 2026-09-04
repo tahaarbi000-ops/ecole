@@ -4,11 +4,13 @@
 // ---------------------------------------------------------------------------
 
 export const supervisorRoles = [
-  'surveillant général',
-  'surveillant de cour',
-  'surveillant d\u2019étude',
-  'responsable discipline',
+   'قيم الساحة',
+  'مراقب الدراسة',
+  'مسؤول الانضباط',
+    'مسؤول التسيير',
+  'مقتصد',
 ];
+export const supervisorStatuses = ['نشط', 'في إجازة', 'غير نشط'];
 
 export const supervisors = [
   {

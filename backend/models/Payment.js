@@ -9,7 +9,7 @@ const Payment  = sequelize.define("payments",{
         autoIncrement:true
     },
     amount:{
-        type:DataTypes.NUMBER,
+        type:DataTypes.DOUBLE,
     },
     status:{
         type:DataTypes.ENUM("payé","non payé"),

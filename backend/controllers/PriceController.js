@@ -1,5 +1,5 @@
 const { body, validationResult } = require("express-validator");
-const Price = require("../models/Price");
+const Price = require("../models/TuitionFee");
 
 exports.getPrices = async (req, res) => {
     try {

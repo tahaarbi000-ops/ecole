@@ -10,44 +10,46 @@ import {
   RadioGroup,
   Radio,
   HStack,
+  Badge,
+  Alert,
+  AlertIcon,
 } from '@chakra-ui/react';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 
 import FormModal from '../common/FormModal';
-import { levels } from '../../data/school';
+import { levels, paiements } from '../../data/school';
 import { AxiosToken } from '../../api/Api';
 
-// TODO: replace with zones fetched from API (Zone model: id, label, price)
-const DUMMY_ZONES = [
-  { id: 1, label: 'Zone A - Khezama' },
-  { id: 2, label: 'Zone B - Sahloul' },
-  { id: 3, label: 'Zone C - Hammam Sousse' },
-];
+
 
 const EMPTY_FORM = {
   name: '',
+  unique_id: '',
   last_name: '',
   father_name: '',
   mother_name: '',
   father_phone: '',
   mother_phone: '',
-  gender: 'garçon',
+  gender: 'ولد',
   birthday: '',
   classe: '',
   address: '',
-  transport: 'non',
+  payment_type: '',
+  transport: 'false',
+  is_take_uniform: 'false',
+  is_take_book: 'false',
   zone_id: '',
 };
 
 const studentSchema = Yup.object({
   name: Yup.string()
     .trim()
-    .required('Name is required.'),
+    .required('الاسم مطلوب.'),
 
   last_name: Yup.string()
     .trim()
-    .required('Last name is required.'),
+    .required('اللقب مطلوب.'),
 
   father_name: Yup.string()
     .trim(),
@@ -58,42 +60,54 @@ const studentSchema = Yup.object({
   father_phone: Yup.string()
     .matches(
       /^\d[\d\s]{6,}$/,
-      'Invalid phone number.'
+      'رقم هاتف الأب غير صالح.'
     )
     .nullable(),
 
   mother_phone: Yup.string()
     .matches(
       /^\d[\d\s]{6,}$/,
-      'Invalid phone number.'
+      'رقم هاتف الأم غير صالح.'
     )
     .nullable(),
 
   gender: Yup.string()
-    .oneOf(['garçon', 'fille'], 'Gender must be garçon or fille.')
-    .required('Gender is required.'),
+    .oneOf(
+      ['بنت', 'ولد'],
+      'الجنس يجب أن يكون ولد أو بنت.'
+    )
+    .required('الجنس مطلوب.'),
 
   birthday: Yup.date()
-    .required('Date of birth is required.')
-    .typeError('Invalid date of birth.'),
+    .required('تاريخ الميلاد مطلوب.')
+    .typeError('تاريخ الميلاد غير صالح.'),
 
   classe: Yup.string()
     .trim()
-    .required('Class is required.'),
+    .required('القسم مطلوب.'),
+
+  payment_type: Yup.string()
+    .trim()
+    .required('طريقة الدفع مطلوب.'),
 
   address: Yup.string()
     .trim()
-    .required('Address is required.'),
+    .required('العنوان مطلوب.'),
 
   transport: Yup.string()
-    .oneOf(['oui', 'non'], 'Invalid transport value.')
-    .required('Transport is required.'),
+    .oneOf(
+      ['true', 'false'],
+      'قيمة النقل غير صالحة.'
+    )
+    .required('النقل مطلوب.'),
 
   zone_id: Yup.string()
     .when('transport', {
-      is: 'oui',
-      then: (schema) => schema.required('Zone is required when transport is enabled.'),
-      otherwise: (schema) => schema.notRequired(),
+      is: 'true',
+      then: (schema) =>
+        schema.required('المنطقة مطلوبة عند تفعيل النقل.'),
+      otherwise: (schema) =>
+        schema.notRequired(),
     }),
 });
 
@@ -103,28 +117,51 @@ export default function StudentFormModal({
   onSubmit,
   student = null,
   isSaving = false,
+  uniqueIsError = false,
+  setUniqueIsError = () => {},
+  lockedFatherName = null,      // NEW
+  offerPositionLabel = null,    // NEW
+  offerPromotionLabel = null,   // NEW — "خصم 50%" أو "مجاني بالكامل" عند تلميذ العرض الأخير
 }) {
-  const [zones,setZones] = useState([])
+  const [zones, setZones] = useState([]);
 
-  useEffect(()=>{
-      const fetchData = async () => {
-        try{
-          const response = await AxiosToken.get("/zone");
-          setZones(response.data.zones)
-        }catch(err){
-          console.error("error",err)
-        }
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await AxiosToken.get('/zone');
+        setZones(response.data.zones);
+      } catch (err) {
+        console.error('error', err);
       }
-      fetchData()
-    },[isSaving])
+    };
+    fetchData();
+  }, [isSaving]);
+
   const isEditMode = Boolean(student);
+  const isFatherNameLocked = Boolean(lockedFatherName) && !isEditMode;
+
+  const mapStudentToFormValues = (s) => ({
+    name: s.name ?? '',
+    unique_id: s.unique_id ?? '',
+    last_name: s.last_name ?? '',
+    father_name: s.father_name ?? '',
+    mother_name: s.mother_name ?? '',
+    father_phone: s.father_phone ?? '',
+    mother_phone: s.mother_phone ?? '',
+    gender: s.gender ?? 'ولد',
+    birthday: s.birthday ? s.birthday.split('T')[0] : '',
+    classe: s.class ?? '',
+    address: s.address ?? '',
+    payment_type: s.subscription?.payment_type ?? '',
+    transport: s.subscription?.transport ? 'true' : 'false',
+    is_take_uniform: s.subscription?.is_take_uniform ? 'true' : 'false',
+    is_take_book: s.subscription?.is_take_book ? 'true' : 'false',
+    zone_id: s.subscription?.zone?.id ?? '',
+  });
 
   const initialValues = student
-    ? {
-        ...EMPTY_FORM,
-        ...student,
-      }
-    : EMPTY_FORM;
+    ? mapStudentToFormValues(student)
+    : { ...EMPTY_FORM, father_name: lockedFatherName || '' }; // NEW
 
   return (
     <Formik
@@ -146,331 +183,231 @@ export default function StudentFormModal({
           onClose={onClose}
           title={
             isEditMode
-              ? `Modifier l’élève — ${student.first_name || student.prenom} ${student.name || student.nom}`
-              : 'Ajouter un élève'
+              ? `تعديل التلميذ — ${student.name} ${student.last_name}`
+              : offerPositionLabel
+                ? `إضافة تلميذ — ${offerPositionLabel}` // NEW
+                : 'إضافة تلميذ'
           }
           footer={
             <>
-              <Button
-                variant="outline"
-                onClick={onClose}
-                isDisabled={isSaving}
-              >
-                Annuler
+              <Button variant="outline" onClick={onClose} isDisabled={isSaving}>
+                الغاء
               </Button>
-
-              <Button
-                onClick={handleSubmit}
-                isLoading={isSaving}
-                loadingText="Enregistrement…"
-              >
-                {isEditMode
-                  ? 'Enregistrer les modifications'
-                  : 'Ajouter l’élève'}
+              <Button onClick={handleSubmit} isLoading={isSaving} loadingText="حفظ…">
+                {isEditMode ? 'حفظ التغييرات' : 'أضف التلميذ'}
               </Button>
             </>
           }
         >
-          <Form id="student-form">
-            <SimpleGrid
-              columns={{ base: 1, md: 2 }}
-              spacing={4}
-            >
-              {/* Name */}
+          <Form id="student-form" dir="rtl">
+            {offerPromotionLabel && (
+              <Alert status="success" borderRadius="lg" fontSize="sm" mb={4}>
+                <AlertIcon />
+                سيتم تطبيق عرض الإخوة على هذا التلميذ: <b>&nbsp;{offerPromotionLabel}&nbsp;</b>
+              </Alert>
+            )}
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
+
+              {/* Unique ID */}
               <FormControl
-                isInvalid={touched.name && errors.name}
-                isRequired
+                isInvalid={(touched.unique_id && errors.unique_id) || uniqueIsError}
               >
-                <FormLabel fontSize="sm">
-                  Nom
-                </FormLabel>
-
+                <FormLabel fontSize="sm">المعرف الوحيد</FormLabel>
                 <Input
-                  name="name"
-                  value={values.name}
-                  onChange={handleChange}
-                  placeholder="Ben Ali"
+                  name="unique_id"
+                  value={values.unique_id}
+                  onChange={(e) => {
+                    handleChange(e);
+                    if (uniqueIsError) setUniqueIsError(false);
+                  }}
+                  placeholder="11111111"
                 />
-
                 <FormErrorMessage>
-                  {errors.name}
+                  {errors.unique_id ? errors.unique_id : uniqueIsError ? 'المعرف الوحيد متكرر' : null}
                 </FormErrorMessage>
+              </FormControl>
+
+              {/* Name */}
+              <FormControl isInvalid={touched.name && errors.name} isRequired>
+                <FormLabel fontSize="sm">الاسم</FormLabel>
+                <Input name="name" value={values.name} onChange={handleChange} placeholder="محمد" />
+                <FormErrorMessage>{errors.name}</FormErrorMessage>
               </FormControl>
 
               {/* Last name */}
-              <FormControl
-                isInvalid={touched.last_name && errors.last_name}
-                isRequired
-              >
-                <FormLabel fontSize="sm">
-                  Prénom
-                </FormLabel>
-
-                <Input
-                  name="last_name"
-                  value={values.last_name}
-                  onChange={handleChange}
-                  placeholder="Mohamed"
-                />
-
-                <FormErrorMessage>
-                  {errors.last_name}
-                </FormErrorMessage>
+              <FormControl isInvalid={touched.last_name && errors.last_name} isRequired>
+                <FormLabel fontSize="sm">اللقب</FormLabel>
+                <Input name="last_name" value={values.last_name} onChange={handleChange} placeholder="علي" />
+                <FormErrorMessage>{errors.last_name}</FormErrorMessage>
               </FormControl>
 
-              {/* Father */}
-              <FormControl>
+              {/* Father - locked when coming from an offer session */}
+              <FormControl isDisabled={isFatherNameLocked}>
                 <FormLabel fontSize="sm">
-                  Nom de pére
+                  اسم الأب {isFatherNameLocked && <Badge ml={2} colorScheme="purple">مثبّت من العرض</Badge>}
                 </FormLabel>
-
                 <Input
                   name="father_name"
                   value={values.father_name}
                   onChange={handleChange}
-                  placeholder="Karim Ben Ali"
+                  placeholder="كريم علي"
+                  isDisabled={isFatherNameLocked}
                 />
               </FormControl>
 
               {/* Mother */}
               <FormControl>
-                <FormLabel fontSize="sm">
-                  Nom de mére
-                </FormLabel>
-
-                <Input
-                  name="mother_name"
-                  value={values.mother_name}
-                  onChange={handleChange}
-                  placeholder="Amel Trabelsi"
-                />
+                <FormLabel fontSize="sm">اسم الأم</FormLabel>
+                <Input name="mother_name" value={values.mother_name} onChange={handleChange} placeholder="أمل التونسي" />
               </FormControl>
 
               {/* Father phone */}
-              <FormControl
-                isInvalid={
-                  touched.father_phone &&
-                  errors.father_phone
-                }
-              >
-                <FormLabel fontSize="sm">
-                  Numéro de téléphone du père
-                </FormLabel>
-
-                <Input
-                  name="father_phone"
-                  value={values.father_phone}
-                  onChange={handleChange}
-                  placeholder="20 145 632"
-                />
-
-                <FormErrorMessage>
-                  {errors.father_phone}
-                </FormErrorMessage>
+              <FormControl isInvalid={touched.father_phone && errors.father_phone}>
+                <FormLabel fontSize="sm">رقم هاتف الأب</FormLabel>
+                <Input name="father_phone" value={values.father_phone} onChange={handleChange} placeholder="632 145 20" />
+                <FormErrorMessage>{errors.father_phone}</FormErrorMessage>
               </FormControl>
 
               {/* Mother phone */}
-              <FormControl
-                isInvalid={
-                  touched.mother_phone &&
-                  errors.mother_phone
-                }
-              >
-                <FormLabel fontSize="sm">
-                  Numéro de téléphone du mére
-
-                </FormLabel>
-
-                <Input
-                  name="mother_phone"
-                  value={values.mother_phone}
-                  onChange={handleChange}
-                  placeholder="22 987 411"
-                />
-
-                <FormErrorMessage>
-                  {errors.mother_phone}
-                </FormErrorMessage>
+              <FormControl isInvalid={touched.mother_phone && errors.mother_phone}>
+                <FormLabel fontSize="sm">رقم هاتف الأم</FormLabel>
+                <Input dir="rtl" name="mother_phone" value={values.mother_phone} onChange={handleChange} placeholder="411 987 22" />
+                <FormErrorMessage>{errors.mother_phone}</FormErrorMessage>
               </FormControl>
 
               {/* Gender */}
               <FormControl isRequired>
-                <FormLabel fontSize="sm">
-                  Genre
-                </FormLabel>
-
-                <RadioGroup
-                  value={values.gender}
-                  onChange={(value) =>
-                    setFieldValue('gender', value)
-                  }
-                >
+                <FormLabel fontSize="sm">جنس</FormLabel>
+                <RadioGroup value={values.gender} onChange={(value) => setFieldValue('gender', value)}>
                   <HStack spacing={5} h="40px">
-                    <Radio value="garçon" colorScheme="blue">
-                      Boy
-                    </Radio>
-
-                    <Radio value="fille" colorScheme="blue">
-                      Girl
-                    </Radio>
+                    <Radio value="ولد" colorScheme="blue">ولد</Radio>
+                    <Radio value="بنت" colorScheme="blue">بنت</Radio>
                   </HStack>
                 </RadioGroup>
-
-                <FormErrorMessage>
-                  {errors.gender}
-                </FormErrorMessage>
+                <FormErrorMessage>{errors.gender}</FormErrorMessage>
               </FormControl>
 
               {/* Birthday */}
-              <FormControl
-                isInvalid={
-                  touched.birthday &&
-                  errors.birthday
-                }
-                isRequired
-              >
-                <FormLabel fontSize="sm">
-                  Date de naissance
-                </FormLabel>
-
+              <FormControl isInvalid={touched.birthday && errors.birthday} isRequired>
+                <FormLabel fontSize="sm">تاريخ الميلاد</FormLabel>
                 <Input
+                  lang="ar-AR"
+                  dir="rtl"
                   type="date"
                   name="birthday"
                   value={values.birthday}
                   onChange={handleChange}
-                  max={new Date(
-                  new Date().setFullYear(new Date().getFullYear() - 5)
-                )
-                  .toISOString()
-                  .split("T")[0]}
+                  max={new Date(new Date().setFullYear(new Date().getFullYear() - 5)).toISOString().split('T')[0]}
                 />
-
-                <FormErrorMessage>
-                  {errors.birthday}
-                </FormErrorMessage>
+                <FormErrorMessage>{errors.birthday}</FormErrorMessage>
               </FormControl>
 
               {/* Class */}
-              <FormControl
-                isInvalid={
-                  touched.classe &&
-                  errors.classe
-                }
-                isRequired
-              >
-                <FormLabel fontSize="sm">
-                  Niveau
-                </FormLabel>
-
+              <FormControl isInvalid={touched.classe && errors.classe} isRequired>
+                <FormLabel fontSize="sm">القسم</FormLabel>
                 <Select
                   name="classe"
-                  placeholder="Sélectionnez une classe"
+                  placeholder="اختر مستوى"
                   value={values.classe}
                   onChange={handleChange}
+                  sx={{
+                    textAlign: 'right', paddingRight: '1rem', paddingLeft: '2rem',
+                    '& + div': { insetInlineEnd: 'auto', insetInlineStart: '0.5rem' },
+                  }}
                 >
                   {levels.map((level) => (
-                    <option
-                      key={level}
-                      value={level}
-                    >
-                      {level}
-                    </option>
+                    <option key={level} value={level}>{level}</option>
                   ))}
                 </Select>
-
-                <FormErrorMessage>
-                  {errors.classe}
-                </FormErrorMessage>
+                <FormErrorMessage>{errors.classe}</FormErrorMessage>
               </FormControl>
 
-              {/* Transport */}
-              <FormControl isRequired>
-                <FormLabel fontSize="sm">
-                  Transport
-                </FormLabel>
+              {/* Payment */}
+              <FormControl isInvalid={touched.payment_type && errors.payment_type} isRequired>
+                <FormLabel fontSize="sm">الدفع</FormLabel>
+                <Select
+                  name="payment_type"
+                  placeholder="اختر طريق الدفع"
+                  value={values.payment_type}
+                  onChange={handleChange}
+                  sx={{
+                    textAlign: 'right', paddingRight: '1rem', paddingLeft: '2rem',
+                    '& + div': { insetInlineEnd: 'auto', insetInlineStart: '0.5rem' },
+                  }}
+                >
+                  {paiements.map((paiement) => (
+                    <option key={paiement} value={paiement}>{paiement}</option>
+                  ))}
+                </Select>
+                <FormErrorMessage>{errors.payment_type}</FormErrorMessage>
+              </FormControl>
 
+              {['التحضيري', 'السنة الأولى', 'السنة الثانية', 'السنة الثالثة', 'السنة الرابعة'].includes(values.classe) && (
+                <FormControl isRequired>
+                  <FormLabel fontSize="sm">اقتناء الكتب</FormLabel>
+                  <RadioGroup value={values.is_take_book} onChange={(value) => setFieldValue('is_take_book', value)}>
+                    <HStack spacing={5} h="40px">
+                      <Radio value="true" colorScheme="blue">نعم</Radio>
+                      <Radio value="false" colorScheme="blue">لا</Radio>
+                    </HStack>
+                  </RadioGroup>
+                </FormControl>
+              )}
+
+              <FormControl isRequired>
+                <FormLabel fontSize="sm">اقتناء ميدعة</FormLabel>
+                <RadioGroup value={values.is_take_uniform} onChange={(value) => setFieldValue('is_take_uniform', value)}>
+                  <HStack spacing={5} h="40px">
+                    <Radio value="true" colorScheme="blue">نعم</Radio>
+                    <Radio value="false" colorScheme="blue">لا</Radio>
+                  </HStack>
+                </RadioGroup>
+              </FormControl>
+
+              <FormControl isRequired>
+                <FormLabel fontSize="sm">مواصلات</FormLabel>
                 <RadioGroup
                   value={values.transport}
                   onChange={(value) => {
                     setFieldValue('transport', value);
-                    if (value === 'non') {
-                      setFieldValue('zone_id', '');
-                    }
+                    if (value === 'false') setFieldValue('zone_id', '');
                   }}
                 >
                   <HStack spacing={5} h="40px">
-                    <Radio value="oui" colorScheme="blue">
-                      Oui
-                    </Radio>
-
-                    <Radio value="non" colorScheme="blue">
-                      Non
-                    </Radio>
+                    <Radio value="true" colorScheme="blue">نعم</Radio>
+                    <Radio value="false" colorScheme="blue">لا</Radio>
                   </HStack>
                 </RadioGroup>
-
-                <FormErrorMessage>
-                  {errors.transport}
-                </FormErrorMessage>
+                <FormErrorMessage>{errors.transport}</FormErrorMessage>
               </FormControl>
 
-              {/* Zone (only relevant when transport is enabled) */}
               <FormControl
-                isInvalid={
-                  touched.zone_id &&
-                  errors.zone_id
-                }
-                isRequired={values.transport === 'oui'}
-                isDisabled={values.transport !== 'oui'}
+                isInvalid={touched.zone_id && errors.zone_id}
+                isRequired={values.transport === 'true'}
+                isDisabled={values.transport !== 'true'}
               >
-                <FormLabel fontSize="sm">
-                  Zone
-                </FormLabel>
-
+                <FormLabel fontSize="sm">منطقة</FormLabel>
                 <Select
                   name="zone_id"
-                  placeholder="Sélectionnez une zone"
+                  placeholder="اختر منطقة"
                   value={values.zone_id}
                   onChange={handleChange}
+                  sx={{
+                    textAlign: 'right', paddingRight: '1rem', paddingLeft: '2rem',
+                    '& + div': { insetInlineEnd: 'auto', insetInlineStart: '0.5rem' },
+                  }}
                 >
                   {zones.map((zone) => (
-                    <option
-                      key={zone.id}
-                      value={zone.id}
-                    >
-                      {zone.label}
-                    </option>
+                    <option key={zone.id} value={zone.id}>{zone.label}</option>
                   ))}
                 </Select>
-
-                <FormErrorMessage>
-                  {errors.zone_id}
-                </FormErrorMessage>
+                <FormErrorMessage>{errors.zone_id}</FormErrorMessage>
               </FormControl>
 
-              {/* Address */}
-              <FormControl
-                isInvalid={
-                  touched.address &&
-                  errors.address
-                }
-                isRequired
-                gridColumn={{ md: 'span 2' }}
-              >
-                <FormLabel fontSize="sm">
-                  Adresse
-                </FormLabel>
-
-                <Input
-                  name="address"
-                  value={values.address}
-                  onChange={handleChange}
-                  placeholder="Sousse — Khezama"
-                />
-
-                <FormErrorMessage>
-                  {errors.address}
-                </FormErrorMessage>
+              <FormControl isInvalid={touched.address && errors.address} isRequired gridColumn={{ md: 'span 2' }}>
+                <FormLabel fontSize="sm">عنوان</FormLabel>
+                <Input name="address" value={values.address} onChange={handleChange} placeholder="فوار الشرقية" />
+                <FormErrorMessage>{errors.address}</FormErrorMessage>
               </FormControl>
             </SimpleGrid>
           </Form>

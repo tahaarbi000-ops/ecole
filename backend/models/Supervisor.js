@@ -7,6 +7,9 @@ const Supervisor  = sequelize.define("supervisors",{
         primaryKey:true,
         autoIncrement:true
     },
+     cin:{
+        type:DataTypes.STRING,
+    },
     name:{
         type:DataTypes.STRING,
     },
@@ -17,16 +20,21 @@ const Supervisor  = sequelize.define("supervisors",{
         type:DataTypes.STRING,
     },
     role:{
-        type:DataTypes.ENUM("surveillant général","surveillant de cour","surveillant d'étude","responsable discipline"),
+        type:DataTypes.ENUM('قيم عام',
+  'قيم الساحة',
+  'مراقب الدراسة',
+  'مسؤول الانضباط',
+  'مقتصد',),
     },
     salary :{
         type:DataTypes.DECIMAL(10, 2),
     },
-    date_deposited:{
-        type:DataTypes.DATEONLY,
-    },
     status:{
-        type:DataTypes.ENUM("actif","inactif","en congé"),
+        type:DataTypes.ENUM('نشط', 'في إجازة', 'غير نشط'),
+    },
+    is_deleted:{
+        type:DataTypes.BOOLEAN,
+        defaultValue:false
     },
 })
 module.exports = Supervisor

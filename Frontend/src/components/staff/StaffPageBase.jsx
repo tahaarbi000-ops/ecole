@@ -80,10 +80,16 @@ export default function StaffPageBase({
   const [personToDelete, setPersonToDelete] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+  
+
+  const [cinError,setCinError] = useState(false)
+
 
   useEffect(() => {
   const loadPeople = async () => {
     try {
+      setIsLoading(true)
       const data = await AxiosToken.get("/teacher");
 
       setPeople(data.data.teachers);
@@ -97,12 +103,13 @@ export default function StaffPageBase({
         duration: 4000,
         isClosable: true,
       });
-    } finally {
-    }
+    } finally{
+        setIsLoading(false)
+      }
   };
 
   loadPeople();
-}, [toast,isSaving]);
+}, [toast,isSaving,isDeleting]);
 
   const formModal = useDisclosure();
   const viewModal = useDisclosure();
@@ -128,112 +135,197 @@ export default function StaffPageBase({
   const openViewModal = (person) => { setSelectedPerson(person); viewModal.onOpen(); };
   const askDelete = (person) => { setPersonToDelete(person); deleteDialog.onOpen(); };
 
-   const handleSubmit = async (formData) => {
-    setIsSaving(true);
+const handleSubmit = async (formData) => {
+  setIsSaving(true);
+  setCinError(false)
 
-    try {
-        const response = await AxiosToken.post(
-            "/teacher",
-            formData
-        );
+  try {
+    if (selectedPerson) {
+      // UPDATE
+      await AxiosToken.put(
+        `/teacher/${selectedPerson.id}`,
+        formData
+      );
 
+      toast({
+        title: 'تم تحديث المعلم بنجاح',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+    } else {
+      // CREATE
+      await AxiosToken.post(
+        "/teacher",
+        formData
+      );
 
-        formModal.onClose();
-
-    } catch (error) {
-        console.error(error);
-    } finally {
-        setIsSaving(false);
+      toast({
+        title: 'تم إضافة المعلم بنجاح',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
     }
+
+    formModal.onClose();
+
+  } catch (error) {
+     if(error.response.status == 400){
+        setCinError(true)
+      }
+
+    toast({
+      title: selectedPerson
+        ? 'حدث خطأ أثناء تحديث المعلم'
+        : 'حدث خطأ أثناء إضافة المعلم',
+      description:
+        'حدث خطأ غير متوقع',
+      status: 'error',
+      duration: 3000,
+      isClosable: true,
+    });
+
+  } finally {
+    setIsSaving(false);
+  }
 };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     setIsDeleting(true);
-    setTimeout(() => {
-      setPeople((prev) => prev.filter((p) => p.id !== personToDelete.id));
-      toast({ title: 'Supprimé', status: 'info', duration: 3000, isClosable: true });
+    try {
+      await AxiosToken.delete(`/teacher/${personToDelete.id}`)
+      toast({
+        title: 'تم حذف المعلم بنجاح',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+
+    } catch {
+      toast({
+        title: 'حدث خطأ أثناء حذف المعلم',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
       setIsDeleting(false);
       deleteDialog.onClose();
-      setPersonToDelete(null);
-    }, 600);
+      setStudentToDelete(null);
+    }
   };
 
-  const columns = [
-    {
-      key: 'displayNumber',
-      label: '#',
-      render: (row) => row.displayNumber,
-    },
-    { key: 'name', label: 'Nom', sortable: true },
-    { key: 'last_name', label: 'Prénom', sortable: true },
-    { key: 'phone', label: 'Téléphone' },
-    {
-      key: 'subject',
-      label: "Matiére",
-      sortable: true,
-      render: (row) => {
-        const values = row.subject;
-        console.log(values)
+const columns = [
+  {
+    key: 'displayNumber',
+    label: '#',
+    render: (row) => row.displayNumber,
+  },
+  {
+    key: 'cin',
+    label: 'رقم بطاقة التعريف',
+    sortable: true,
+  },
+  {
+    key: 'name',
+    label: 'الاسم',
+    sortable: true,
+  },
+  {
+    key: 'last_name',
+    label: 'اللقب',
+    sortable: true,
+  },
+  {
+    key: 'phone',
+    label: 'رقم الهاتف',
+  },
+  {
+    key: 'subject',
+    label: 'المادة',
+    sortable: true,
+    render: (row) => {
+      const values = row.subject;
 
-        if (!values.length) {
-          return <Text color="ink.400" fontSize="sm">—</Text>;
-        }
+      if (!values.length) {
+        return <Text color="ink.400" fontSize="sm">—</Text>;
+      }
 
-        return (
-          <Wrap spacing={1}>
-            {values.map((v) => (
-              <Badge key={v} bg="ink.100" color="ink.700" borderRadius="full" px={2.5} fontWeight="600">
-                {v.label}
-              </Badge>
-            ))}
-          </Wrap>
-        );
-      },
+      return (
+        <Wrap spacing={1}>
+          {values.map((v) => (
+            <Badge
+              key={v}
+              bg="ink.100"
+              color="ink.700"
+              borderRadius="full"
+              px={2.5}
+              fontWeight="600"
+            >
+              {v.label}
+            </Badge>
+          ))}
+        </Wrap>
+      );
     },
-    { key: 'date_deposited', label: 'Date dépôt salaire', sortable: true, render: (row) => formatDate(row.date_deposited) },
-    {
-      key: 'salary',
-      label: 'Salaire',
-      sortable: true,
-      isNumeric: true,
-      render: (row) => `${row.salary.toLocaleString("FR-fr")} DT`,
-    },
-    ...(showStatus
-      ? [{
+  },
+  {
+    key: 'price_by_hour',
+    label: 'سعر الساعة',
+    sortable: true,
+    isNumeric: true,
+    render: (row) => `${row.price_by_hour?.toLocaleString("FR-fr")} DT`,
+  },
+  ...(showStatus
+    ? [
+        {
           key: 'statut',
-          label: 'Statut',
+          label: 'الحالة',
           sortable: true,
           render: (row) => {
-            const c = STATUS_COLORS[row.status] || { bg: 'ink.100', color: 'ink.700', };
+            const c = STATUS_COLORS[row.status] || {
+              bg: 'ink.100',
+              color: 'ink.700',
+            };
+
             return (
-              <Badge bg={c.bg} color={c.color} borderRadius="full" px={2.5}>
+              <Badge
+                bg={c.bg}
+                color={c.color}
+                borderRadius="full"
+                px={2.5}
+              >
                 {row.status}
               </Badge>
             );
           },
-        }]
-      : []),
-  ];
+        },
+      ]
+    : []),
+];
 
   return (
-    <Box>
+    <Box
+    dir='rtl'
+    >
       <PageHeader
         title={pageTitle}
-        subtitle={`${people.length} membres du personnel enregistrés`}
+        subtitle={` أعضاء الموظفين المسجلين ${people.length}`}
         actions={
           <>
             <Tooltip label="Export bientôt disponible" hasArrow>
               <IconButton aria-label="Exporter" icon={<Download size={17} />} variant="outline" isDisabled />
             </Tooltip>
             <Button leftIcon={<Plus size={17} />} onClick={openAddModal}>
-              Ajouter {entityLabel}
+              اضافة {entityLabel}
             </Button>
           </>
         }
       />
 
       <Wrap spacing={3} mb={5} align="center">
-        <SearchBar value={search} onChange={setSearch} placeholder="Rechercher par nom, prénom, téléphone…" />
+        <SearchBar value={search} onChange={setSearch} placeholder="ابحث بالاسم، أو اللقب، أو رقم الهاتف…" />
 
         <Select
           w={{ base: 'full', sm: '210px' }}
@@ -243,8 +335,17 @@ export default function StaffPageBase({
           borderColor="ink.200"
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
+               sx={{
+          textAlign: 'right',
+          paddingRight: '1rem',
+          paddingLeft: '2rem',
+          '& + div': {
+            insetInlineEnd: 'auto',
+            insetInlineStart: '0.5rem',
+          },
+        }}
         >
-          <option value="">{`Tous — ${roleFieldLabel.toLowerCase()}`}</option>
+          <option value="">{`جميع — ${roleFieldLabel.toLowerCase()}`}</option>
           {roleOptions.map((opt) => (
             <option key={opt} value={opt}>{opt}</option>
           ))}
@@ -259,8 +360,17 @@ export default function StaffPageBase({
             borderColor="ink.200"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
+                 sx={{
+          textAlign: 'right',
+          paddingRight: '1rem',
+          paddingLeft: '2rem',
+          '& + div': {
+            insetInlineEnd: 'auto',
+            insetInlineStart: '0.5rem',
+          },
+        }}
           >
-            <option value="">Tous les statuts</option>
+            <option value="">جميع الحالات</option>
             {statusOptions.map((opt) => (
               <option key={opt} value={opt}>{opt}</option>
             ))}
@@ -269,13 +379,13 @@ export default function StaffPageBase({
 
         {(search || roleFilter || statusFilter) && (
           <Button size="sm" variant="ghost" onClick={() => { setSearch(''); setRoleFilter(''); setStatusFilter(''); }}>
-            Réinitialiser
+            إعادة ضبط
           </Button>
         )}
 
         <HStack spacing={1.5} ml="auto" color="ink.400">
           <Users size={15} />
-          <Text fontSize="xs">{filteredPeople.length} résultat(s)</Text>
+          <Text fontSize="xs">{filteredPeople.length} نتيجة</Text>
         </HStack>
       </Wrap>
 
@@ -283,13 +393,14 @@ export default function StaffPageBase({
         columns={columns}
         data={filteredPeople}
         pageSize={8}
-        emptyMessage="Aucun résultat ne correspond à ces critères."
+        isLoading={isLoading}
+        emptyMessage="لا توجد نتائج مطابقة لهذه المعايير."
         renderActions={(row) => (
           <HStack spacing={1}>
             <Tooltip label="Voir" hasArrow>
               <IconButton aria-label="Voir" icon={<Eye size={16} />} size="sm" variant="ghost" onClick={() => openViewModal(row)} />
             </Tooltip>
-            <Tooltip label="Modifier" hasArrow>
+            <Tooltip label="Modifier" hasArroMaîtresw>
               <IconButton aria-label="Modifier" icon={<Pencil size={16} />} size="sm" variant="ghost" onClick={() => openEditModal(row)} />
             </Tooltip>
             <Tooltip label="Supprimer" hasArrow>
@@ -319,6 +430,7 @@ export default function StaffPageBase({
         roleOptions={roleOptions}
         showStatus={showStatus}
         statusOptions={statusOptions}
+        cinError={cinError}
       />
 
       <StaffViewModal
@@ -330,18 +442,19 @@ export default function StaffPageBase({
         roleFieldLabel={roleFieldLabel}
       />
 
-      <ConfirmDialog
-        isOpen={deleteDialog.isOpen}
-        onClose={deleteDialog.onClose}
-        onConfirm={handleDelete}
-        isLoading={isDeleting}
-        title="Confirmer la suppression"
-        message={
-          personToDelete
-            ? `Voulez-vous vraiment supprimer ${personToDelete.prenom} ${personToDelete.nom} ? Cette action est irréversible.`
-            : ''
-        }
-      />
+<ConfirmDialog
+  isOpen={deleteDialog.isOpen}
+  onClose={deleteDialog.onClose}
+  onConfirm={handleDelete}
+  isLoading={isDeleting}
+  title="تأكيد الحذف"
+  message={
+    personToDelete
+      ? `هل أنت متأكد من حذف المعلم ${personToDelete.name} ${personToDelete.last_name}؟ لا يمكن التراجع عن هذا الإجراء.`
+      : ''
+  }
+/>
+
     </Box>
   );
 }

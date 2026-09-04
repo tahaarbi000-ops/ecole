@@ -10,6 +10,9 @@ const Student  = sequelize.define("students",{
     name:{
         type:DataTypes.STRING,
     },
+    unique_id:{
+        type:DataTypes.STRING,
+    },
     last_name:{
         type:DataTypes.STRING,
     },
@@ -32,10 +35,14 @@ const Student  = sequelize.define("students",{
         type:DataTypes.STRING,
     },
     gender:{
-        type:DataTypes.ENUM("garçon","fille"),
+        type:DataTypes.ENUM("بنت", "ولد"),
     },
     birthday:{
         type:DataTypes.DATEONLY,
+    },
+    is_deleted:{
+        type:DataTypes.BOOLEAN,
+        defaultValue:false
     },
 })
 module.exports = Student

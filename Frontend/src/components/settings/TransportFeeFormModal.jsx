@@ -8,6 +8,7 @@ import {
   Button,
   InputGroup,
   InputRightElement,
+  InputLeftElement,
 } from '@chakra-ui/react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
@@ -17,17 +18,22 @@ import FormModal from '../common/FormModal';
 const EMPTY_FORM = {
   label: '',
   amount: '',
+  amountYearly: '',
 };
 
 const validationSchema = Yup.object({
   label: Yup.string()
     .trim()
-    .required('Le nom de la zone est requis.'),
+    .required('اسم المنطقة مطلوب.'),
 
   amount: Yup.number()
-    .typeError('Le tarif doit être un nombre.')
-    .positive('Le tarif doit être positif.')
-    .required('Le tarif est requis.'),
+    .typeError('يجب أن يكون المعلوم رقمًا.')
+    .positive('يجب أن يكون المعلوم أكبر من صفر.')
+    .required('المعلوم مطلوب.'),
+  amountYearly: Yup.number()
+    .typeError('يجب أن يكون المعلوم رقمًا.')
+    .positive('يجب أن يكون المعلوم أكبر من صفر.')
+    .required('المعلوم مطلوب.'),
 });
 
 export default function TransportFeeFormModal({
@@ -47,6 +53,7 @@ export default function TransportFeeFormModal({
       onSubmit({
         ...values,
         amount: Number(values.amount),
+        amount_yearly: Number(values.amountYearly),
       });
     },
   });
@@ -76,34 +83,37 @@ export default function TransportFeeFormModal({
     <FormModal
       isOpen={isOpen}
       onClose={handleClose}
-      title={isEditMode ? 'Modifier la zone' : 'Ajouter une zone'}
+      title={isEditMode ? 'تعديل المنطقة' : 'إضافة منطقة'}
       footer={
         <>
           <Button variant="outline" onClick={handleClose}>
-            Annuler
+            إلغاء
           </Button>
 
           <Button
             onClick={formik.handleSubmit}
             isLoading={isSaving}
-            loadingText="Enregistrement…"
+            loadingText="جاري الحفظ..."
           >
-            {isEditMode ? 'Enregistrer' : 'Ajouter'}
+            {isEditMode ? 'حفظ' : 'إضافة'}
           </Button>
         </>
       }
       size="md"
     >
-      <form onSubmit={formik.handleSubmit} noValidate>
+      <form dir='rtl' onSubmit={formik.handleSubmit} noValidate>
         <SimpleGrid columns={1} spacing={4}>
 
-          {/* Zone */}
+          {/* المنطقة */}
           <FormControl
-            isInvalid={formik.touched.label && Boolean(formik.errors.label)}
+            isInvalid={
+              formik.touched.label &&
+              Boolean(formik.errors.label)
+            }
             isRequired
           >
             <FormLabel fontSize="sm">
-              label
+              اسم المنطقة
             </FormLabel>
 
             <Input
@@ -111,7 +121,7 @@ export default function TransportFeeFormModal({
               value={formik.values.label}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
-              placeholder="Zone 5"
+              placeholder="المنطقة 5"
             />
 
             <FormErrorMessage>
@@ -119,13 +129,16 @@ export default function TransportFeeFormModal({
             </FormErrorMessage>
           </FormControl>
 
-          {/* Amount */}
+          {/* المعلوم */}
           <FormControl
-            isInvalid={formik.touched.amount && Boolean(formik.errors.amount)}
+            isInvalid={
+              formik.touched.amount &&
+              Boolean(formik.errors.amount)
+            }
             isRequired
           >
             <FormLabel fontSize="sm">
-              Tarif mensuel
+              المعلوم الشهري
             </FormLabel>
 
             <InputGroup>
@@ -137,21 +150,62 @@ export default function TransportFeeFormModal({
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
                 placeholder="100"
+                dir="ltr"
+                textAlign={"right"}
               />
-
-              <InputRightElement
+              
+              <InputLeftElement
                 w="3.2rem"
                 color="ink.400"
                 fontSize="sm"
               >
-                DT
-              </InputRightElement>
+                د.ت
+              </InputLeftElement>
             </InputGroup>
 
             <FormErrorMessage>
               {formik.errors.amount}
             </FormErrorMessage>
           </FormControl>
+
+          <FormControl
+            isInvalid={
+              formik.touched.amountYearly &&
+              Boolean(formik.errors.amountYearly)
+            }
+            isRequired
+          >
+            <FormLabel fontSize="sm">
+              المعلوم السنوي
+            </FormLabel>
+
+            <InputGroup>
+              <Input
+                name="amountYearly"
+                type="number"
+                min="0"
+                value={formik.values.amountYearly}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                placeholder="100"
+                dir="ltr"
+                textAlign={"right"}
+              />
+              
+              <InputLeftElement
+                w="3.2rem"
+                color="ink.400"
+                fontSize="sm"
+              >
+                د.ت
+              </InputLeftElement>
+            </InputGroup>
+
+            <FormErrorMessage>
+              {formik.errors.amountYearly}
+            </FormErrorMessage>
+          </FormControl>
+
 
         </SimpleGrid>
       </form>

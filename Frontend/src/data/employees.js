@@ -4,12 +4,13 @@
 // ---------------------------------------------------------------------------
 
 export const employeeRoles = [
-  'secrétaire',
-  'comptable',
-  'chauffeur',
-  'agent de nettoyage',
-  "agent de sécurité"
+  'كاتب(ة)',
+  'محاسب(ة)',
+  'سائق',
+  'عامل(ة) نظافة',
+  'عون أمن',
 ];
+export const employeeStatuses = ['نشط', 'في إجازة', 'غير نشط'];
 
 export const employees = [
   {

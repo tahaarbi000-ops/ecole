@@ -13,6 +13,9 @@ const Zone  = sequelize.define("zone",{
     amount:{
         type:DataTypes.DOUBLE,
     },
+    amount_yearly:{
+        type:DataTypes.DOUBLE,
+    },
     
 })
 module.exports = Zone

@@ -22,8 +22,12 @@ const User  = sequelize.define("user",{
         allowNull:false
     },
     role:{
-        type:DataTypes.STRING,
-        defaultValue:"admin"
+        type:DataTypes.ENUM("مقتصد","مديرة"),
+        defaultValue:"مديرة"
     },
+    is_deleted : {
+        type:DataTypes.BOOLEAN,
+        defaultValue:false
+    }
 })
 module.exports = User

@@ -1,4 +1,7 @@
-import { Box, HStack, Text, VStack } from '@chakra-ui/react';
+import { Box, HStack, Img, Text, VStack } from '@chakra-ui/react';
+import logo from "../../assets/images/logo.png"
+import logoWithOutBg from "../../assets/images/logoWithOutBg.png"
+
 
 /**
  * Logo de l'école — un mark évoquant un livre ouvert / un toit,
@@ -35,14 +38,14 @@ export default function Logo({ variant = 'full', size = 40, nameColor = 'ink.900
   if (variant === 'mark') return <LogoMark size={size} />;
 
   return (
-    <HStack spacing={3} align="center">
-      <LogoMark size={size} />
-      <VStack spacing={0} align="flex-start" lineHeight="1.1">
+    <HStack dir='rtl' spacing={3} align="right">
+      <Img src={logoWithOutBg} w='10' alt='logo'/>
+      <VStack spacing={0} align="flex-start"  lineHeight="1.1">
         <Text fontFamily="heading" fontWeight="700" fontSize="md" color={nameColor}>
-          École Mohamed Tayeb School
+          الفوار سكول
         </Text>
         <Text fontSize="xs" color="ink.400" fontWeight="500">
-          Espace administration
+          الفضاء الإداري
         </Text>
       </VStack>
     </HStack>

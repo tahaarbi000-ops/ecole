@@ -17,20 +17,18 @@ import {
   AlertIcon,
   Checkbox,
   Divider,
+  InputLeftElement,
 } from '@chakra-ui/react';
-import { Eye, EyeOff, GraduationCap, Users2, ShieldCheck, Sparkles } from 'lucide-react';
+import { Eye, EyeOff, Copyright, Heart } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Logo from '../components/common/Logo';
 
-const HIGHLIGHTS = [
-  { icon: GraduationCap, text: '850 élèves accompagnés cette année' },
-  { icon: Users2, text: 'Une équipe de 52 enseignants qualifiés' },
-  { icon: ShieldCheck, text: 'Suivi administratif sécurisé et centralisé' },
-];
+// Adapte ce chemin vers l'emplacement réel de ton image
+import ecoleFacade from '../assets/images/back.jpg';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login,user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -43,10 +41,9 @@ export default function Login() {
 
   const validate = () => {
     const next = {};
-    if (!email.trim()) next.email = 'L\u2019email est requis.';
-    else if (!/^\S+@\S+\.\S+$/.test(email)) next.email = 'Format d\u2019email invalide.';
-    if (!password) next.password = 'Le mot de passe est requis.';
-    else if (password.length < 4) next.password = 'Mot de passe trop court.';
+    if (!email.trim()) next.email = 'البريد الإلكتروني مطلوب.';
+    else if (!/^\S+@\S+\.\S+$/.test(email)) next.email = 'صيغة البريد الإلكتروني غير صحيحة.';
+    if (!password) next.password = 'كلمة المرور مطلوبة.';
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -59,22 +56,90 @@ export default function Login() {
     setIsLoading(true);
     try {
       await login(email, password);
-      const redirectTo = location.state?.from?.pathname || '/dashboard';
+      console.log(user)
+      const redirectTo =
+  user?.role === "مديرة"
+    ? "/dashboard"
+    : "/student";
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      setFormError(err.message || 'Une erreur est survenue.');
+      setFormError(err.message || 'حدث خطأ ما.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <Flex minH="100vh" bg="ink.50">
+    <Flex dir='rtl' minH="100vh" bg="ink.50">
       {/* Colonne gauche — présentation de l'école */}
-     
+      <Flex
+        flex={1}
+        display={{ base: 'none', lg: 'flex' }}
+        position="relative"
+        align="center"
+        justify="center"
+        overflow="hidden"
+        bgImage={`url(${ecoleFacade})`}
+        bgSize="cover"
+        bgPosition="center"
+      >
+        {/* Overlay sombre pour la lisibilité du texte */}
+        <Box
+          position="absolute"
+          inset={0}
+          bgGradient="linear(to-b, blackAlpha.700, blackAlpha.500, blackAlpha.800)"
+        />
+
+        <VStack
+          position="relative"
+          zIndex={1}
+          spacing={8}
+          px={10}
+          textAlign="center"
+          dir="rtl"
+        >
+          <VStack spacing={2}>
+            <Text
+              color="white"
+              fontSize="lg"
+              fontWeight="700"
+              letterSpacing="wide"
+            >
+              الجمهورية التونسية
+            </Text>
+            <Text
+              color="whiteAlpha.900"
+              fontSize="md"
+              fontWeight="600"
+            >
+              المندوبية الجهوية للتربية بقبلي
+            </Text>
+            <Text
+              color="white"
+              fontFamily="heading"
+              fontSize="2xl"
+              fontWeight="800"
+              mt={2}
+            >
+              المدرسة الابتدائية الفوار سكول
+            </Text>
+          </VStack>
+
+          <Divider borderColor="whiteAlpha.400" w="60%" />
+        </VStack>
+      </Flex>
 
       {/* Colonne droite — formulaire de connexion */}
-      <Flex flex={1} align="center" justify="center" px={{ base: 6, md: 12 }} py={10}>
+      <Flex
+        flex={1}
+        direction="column"
+        align="center"
+        justify="space-between"
+        px={{ base: 6, md: 12 }}
+        py={10}
+      >
+        <Box w="full" maxW="400px" />
+
         <VStack w="full" maxW="400px" align="stretch" spacing={7}>
           <Box display={{ base: 'block', lg: 'none' }} mb={2}>
             <Logo variant="full" />
@@ -82,10 +147,10 @@ export default function Login() {
 
           <VStack align="flex-start" spacing={1}>
             <Text fontFamily="heading" fontSize="2xl" fontWeight="700" color="ink.900">
-              Bienvenue
+              مرحبًا
             </Text>
             <Text fontSize="sm" color="ink.500">
-              Connectez-vous pour accéder à votre espace d’administration.
+              قم بتسجيل الدخول للوصول إلى فضاء الإدارة.
             </Text>
           </VStack>
 
@@ -100,7 +165,7 @@ export default function Login() {
             <VStack spacing={4} align="stretch">
               <FormControl isInvalid={Boolean(errors.email)}>
                 <FormLabel fontSize="sm" fontWeight="600" color="ink.700">
-                  Adresse email
+                  عنوان البريد الإلكتروني
                 </FormLabel>
                 <Input
                   type="email"
@@ -117,7 +182,7 @@ export default function Login() {
 
               <FormControl isInvalid={Boolean(errors.password)}>
                 <FormLabel fontSize="sm" fontWeight="600" color="ink.700">
-                  Mot de passe
+                  كلمة المرور
                 </FormLabel>
                 <InputGroup size="lg">
                   <Input
@@ -129,57 +194,57 @@ export default function Login() {
                     borderColor="ink.200"
                     _focus={{ borderColor: 'brand.400', boxShadow: '0 0 0 1px var(--chakra-colors-brand-400)' }}
                   />
-                  <InputRightElement>
+                  <InputLeftElement>
                     <IconButton
-                      aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                      aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
                       icon={showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                       variant="ghost"
                       size="sm"
                       onClick={() => setShowPassword((v) => !v)}
                     />
-                  </InputRightElement>
+                  </InputLeftElement>
                 </InputGroup>
                 <FormErrorMessage>{errors.password}</FormErrorMessage>
               </FormControl>
 
-              <HStack justify="space-between">
-                <Checkbox colorScheme="blue" size="sm" defaultChecked>
-                  <Text fontSize="sm" color="ink.600">Se souvenir de moi</Text>
-                </Checkbox>
-                <Text
-                  as="button"
-                  type="button"
-                  fontSize="sm"
-                  fontWeight="600"
-                  color="brand.600"
-                  _hover={{ textDecoration: 'underline' }}
-                >
-                  Mot de passe oublié ?
-                </Text>
-              </HStack>
+             
 
               <Button
                 type="submit"
                 size="lg"
                 w="full"
                 isLoading={isLoading}
-                loadingText="Connexion en cours…"
+                loadingText="جارٍ تسجيل الدخول…"
               >
-                Se connecter
+                تسجيل الدخول
               </Button>
             </VStack>
           </form>
+        </VStack>
 
-          <Divider borderColor="ink.200" />
-
-          <Box bg="brand.50" borderRadius="lg" px={4} py={3}>
-            <Text fontSize="xs" color="brand.700" fontWeight="600" mb={1}>
-              Accès de démonstration
+        {/* Footer */}
+        <VStack spacing={3} pt={10} w="full">
+          <Divider borderColor="ink.200" maxW="200px" />
+          <HStack spacing={2} color="ink.400">
+            <Copyright size={13} strokeWidth={2} />
+            <Text fontSize="xs" fontWeight="500" letterSpacing="0.02em">
+              {new Date().getFullYear()} — جميع الحقوق محفوظة
             </Text>
-            <Text fontSize="xs" color="ink.600">
-              Email : admin@ecole.tn — Mot de passe : admin123
+          </HStack>
+          <HStack spacing={1.5} fontSize="xs" color="ink.400">
+            <Text>Développé par</Text>
+            <Heart size={12} fill="currentColor" strokeWidth={0} color="#e53e3e" />
+            <Text>
+              {' '}
+              <Text as="span" fontWeight="700" color="ink.600">
+               TAHA
+              </Text>
+              {' '}ET{' '}
+              <Text as="span" fontWeight="700" color="ink.600">
+                KAIS
+              </Text>
             </Text>
-          </Box>
+          </HStack>
         </VStack>
       </Flex>
     </Flex>

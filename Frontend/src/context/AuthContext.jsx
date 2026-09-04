@@ -1,84 +1,105 @@
-import { createContext, useContext, useMemo, useState, useEffect } from 'react';
-import { Axios } from '../api/Api';
+import { createContext, useContext, useMemo, useState } from "react";
+import { Axios } from "../api/Api";
 
 const AuthContext = createContext(null);
 
-const STORAGE_KEY = 'alamal_auth_session';
+const STORAGE_KEY = "alamal_auth_session";
+const TOKEN_KEY = "auth";
 
-// Identifiants fictifs — seront remplacés par la vérification côté backend.
-const FAKE_CREDENTIALS = {
-  email: 'admin@ecole.tn',
-  password: 'admin123',
-};
+function readStoredUser() {
+    try {
+        const raw = sessionStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+}
 
-const FAKE_USER = {
-  name: 'Administrateur',
-  role: 'Directeur de l\u2019école',
-  email: 'admin@ecole.tn',
-  initials: 'AD',
-};
+function persistSession(token, user) {
+    localStorage.setItem(TOKEN_KEY, token);
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+}
+
+function clearSession() {
+    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(STORAGE_KEY);
+}
+
+// Restore synchronously on load: token + user must both be present and
+// consistent, otherwise treat the session as invalid.
+function bootstrapUser() {
+    const token = localStorage.getItem(TOKEN_KEY);
+    const storedUser = readStoredUser();
+
+    if (token && storedUser) {
+        return storedUser;
+    }
+
+    clearSession();
+    return null;
+}
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const raw = sessionStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  });
+    const [user, setUser] = useState(bootstrapUser);
+    const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-    } else {
-      sessionStorage.removeItem(STORAGE_KEY);
-    }
-  }, [user]);
+    const login = async (email, password) => {
+        setLoading(true);
 
-  const login = async (email, password) => {
-    try {
-        const response = await Axios.post("/auth/login", {
-            email: email.trim().toLowerCase(),
-            password
-        });
+        try {
+            const response = await Axios.post("/auth/login", {
+                email: email.trim().toLowerCase(),
+                password,
+            });
 
-        const { token, user } = response.data;
+            const { token, user } = response.data;
 
-        localStorage.setItem("auth", token);
+            persistSession(token, user);
+            setUser(user);
 
-        setUser(user);
+            return user;
+        } catch (error) {
+            const message =
+                error.response?.data?.message ||
+                "Email ou mot de passe incorrect.";
 
-        return user;
+            throw new Error(message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-    } catch (error) {
-        const message =
-            error.response?.data?.message ||
-            "Email ou mot de passe incorrect.";
+    const logout = () => {
+        setUser(null);
+        clearSession();
+    };
 
-        throw new Error(message);
-    }
-};
+    const value = useMemo(
+        () => ({
+            user,
+            loading,
+            isAuthenticated: Boolean(user),
+            login,
+            logout,
+        }),
+        [user, loading]
+    );
 
-  const logout = () => setUser(null);
-
-  const value = useMemo(
-    () => ({
-      user,
-      isAuthenticated: Boolean(user),
-      login,
-      logout,
-    }),
-    [user]
-  );
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    return (
+        <AuthContext.Provider value={value}>
+            {children}
+        </AuthContext.Provider>
+    );
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error('useAuth doit être utilisé à l\u2019intérieur d\u2019un <AuthProvider>');
-  }
-  return ctx;
+    const ctx = useContext(AuthContext);
+
+    if (!ctx) {
+        throw new Error(
+            "useAuth doit être utilisé à l'intérieur d'un <AuthProvider>"
+        );
+    }
+
+    return ctx;
 }

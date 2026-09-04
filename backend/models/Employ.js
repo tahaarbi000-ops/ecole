@@ -7,6 +7,9 @@ const Employ  = sequelize.define("employs",{
         primaryKey:true,
         autoIncrement:true
     },
+     cin:{
+        type:DataTypes.STRING,
+    },
     name:{
         type:DataTypes.STRING,
     },
@@ -17,16 +20,21 @@ const Employ  = sequelize.define("employs",{
         type:DataTypes.STRING,
     },
     role:{
-        type:DataTypes.ENUM("secrétaire","comptable","chauffeur","agent de nettoyage","agent de sécurité"),
+        type:DataTypes.ENUM('كاتب(ة)',
+  'محاسب(ة)',
+  'سائق',
+  'عامل(ة) نظافة',
+  'عون أمن',),
     },
     salary :{
         type:DataTypes.DECIMAL(10, 2),
     },
-    date_deposited:{
-        type:DataTypes.DATEONLY,
-    },
     status:{
-        type:DataTypes.ENUM("actif","inactif","en congé"),
+        type:DataTypes.ENUM("نشط", "في إجازة", "غير نشط"),
+    },
+     is_deleted:{
+        type:DataTypes.BOOLEAN,
+        defaultValue:false
     },
 })
 module.exports = Employ

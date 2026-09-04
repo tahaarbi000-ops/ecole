@@ -5,32 +5,36 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 
 const PAGE_TITLES = {
-  '/dashboard': 'Tableau de bord',
-  '/students': 'Élèves',
-  '/teachers': 'Maîtres',
-  '/supervisors': 'Surveillants',
-  '/employees': 'Employés',
-  '/payments': 'Paiements',
+  '/dashboard': 'لوحة التحكم',
+  '/students': 'التلاميذ',
+  '/teachers': 'المعلمون',
+  '/supervisors': 'المشرفون',
+  '/employees': 'الموظفين',
+  '/payments': 'المدفوعات',
   '/backup': 'Sauvegarde',
-  '/settings': 'Paramètres',
+  '/settings': 'الإعدادات',
 };
 
 function getPageTitle(pathname) {
   if (pathname.startsWith('/register/absences')) {
     const category = pathname.split('/')[3];
     const map = {
-      eleves: 'Registre — Absences Élèves',
-      maitres: 'Registre — Absences Maîtres',
-      surveillants: 'Registre — Absences Surveillants',
-      employes: 'Registre — Absences Employés',
+      eleves: 'سجل غياب التلاميذ',
+      maitres: 'سجل غيابات المعلمين',
+      surveillants: 'سجل غيابات المشرفين',
+      employes: 'سجل غيابات الموظفين',
     };
     return map[category] || 'Registre — Absences';
   }
   if (pathname === '/register/late') return 'Registre — Retards';
   if (pathname === '/register/observations') return 'Registre — Observations';
-  if (pathname === '/register/teacher-movements') return 'Registre — Maîtres (Entrées/Sorties)';
+  if (pathname === '/register/teacher-movements') return 'التسجيل - الماجستير ( الحضور والانصراف)';
+  if (pathname === '/payments/eleves') return 'المدفوعات - التلاميذ';
+if (pathname === '/payments/maitres') return 'المدفوعات - المعلمون';
+if (pathname === '/payments/employs') return 'المدفوعات - الموظفين/المشرفون';
+if (pathname === '/payments/achats') return 'المدفوعات - المشتريات';
   if (pathname.startsWith('/register')) return 'Registre';
-  return PAGE_TITLES[pathname] || 'École Mohamed Tayeb School';
+  return PAGE_TITLES[pathname] || 'مدرسة الفوار سكول';
 }
 
 export default function MainLayout() {
@@ -48,7 +52,7 @@ export default function MainLayout() {
       />
 
       <Box
-        ml={{ base: 0, lg: collapsed ? '84px' : '260px' }}
+        mr={{ base: 0, lg: collapsed ? '84px' : '260px' }}
         transition="margin-left 0.2s ease"
         minH="100vh"
         display="flex"

@@ -5,10 +5,11 @@ import { subjects } from '../../data/teachers';
 export default function AbsenceMaitres() {
   return (
     <AbsenceRolePage
-      personLabel="Maître"
+      personLabel="المعلمون"
       initialData={absencesMaitres}
       secondaryFieldKey="matiere"
-      secondaryFieldLabel="Matière"
+      secondaryFieldLabel="مواد"
+      searchFieldLabel="المواد"
       secondaryOptions={subjects}
       personsEndpoint="/teacher"
       personsMode="search"

@@ -16,9 +16,30 @@ const Subscription  = sequelize.define("subscriptions",{
     transport:{
         type:DataTypes.BOOLEAN
     },
+    payment_type:{
+        type:DataTypes.ENUM('يدفع شهريًا',
+            'يدفع بالثلاثي',
+            'يدفع سنويًا',
+            'غير معني بالدفع'),
+    },
     status:{
         type:DataTypes.ENUM("payé","en attente","non payé"),
         defaultValue:"payé"
+    },
+    is_take_book:{
+        type:DataTypes.BOOLEAN
+    },
+    is_take_uniform:{
+        type:DataTypes.BOOLEAN
+    },
+    promotion:{
+        type:DataTypes.ENUM('discount_50','free'),
+        allowNull:true,
+        defaultValue:null
+    },
+    siblings_count:{
+        type:DataTypes.INTEGER,
+        allowNull:true
     },
     student_id:{
         type:DataTypes.BIGINT,

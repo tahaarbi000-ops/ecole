@@ -20,6 +20,15 @@ import TeacherMovements from './pages/register/TeacherMovements';
 import Payments from './pages/Payments';
 import Backup from './pages/Backup';
 import Settings from './pages/Settings';
+import PaymentsEleves from './components/payments/PaymentsEleves';
+import PaymentsMaitres from './components/payments/PaymentsMaitres';
+import PaymentsAchats from './components/payments/PaymentsAchats';
+import PaymentsSurveillants from './components/payments/PaymentsSurveillantsEmploy';
+import FinanceOverview from './components/payments/FinanceOverview';
+import SchoolLoadingPage from './components/common/SchoolLoadingPage';
+import DirectorRoute from './protect/DirectorRoute';
+import AdminProfile from './pages/AdminProfile';
+import ActivityLogs from './pages/ActivityLogs';
 
 export default function App() {
   return (
@@ -27,17 +36,19 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
 
+            <Route path="/loading" element={<SchoolLoadingPage />} />
         {/* Routes protégées — accessibles uniquement si connecté */}
         <Route element={<ProtectedRoute />}>
           <Route element={<MainLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard" element={<DirectorRoute> <Dashboard /> </DirectorRoute>} />
             <Route path="/students" element={<Students />} />
+            <Route path="/activity-logs" element={<ActivityLogs />} />
             <Route path="/teachers" element={<Teachers />} />
             <Route path="/supervisors" element={<Supervisors />} />
             <Route path="/employees" element={<Employees />} />
-
+            <Route path="/profil" element={<AdminProfile />} />
             <Route path="/register" element={<Register />}>
-              <Route path="absences" element={<Navigate to="/register/absences/eleves" replace />} />
+              <Route path="absences" element={<Navigate to="/register/absences/maitres" replace />} />
               <Route path="absences/eleves" element={<AbsenceEleves />} />
               <Route path="absences/maitres" element={<AbsenceMaitres />} />
               <Route path="absences/surveillants" element={<AbsenceSurveillants />} />
@@ -48,6 +59,12 @@ export default function App() {
             </Route>
 
             <Route path="/payments" element={<Payments />} />
+            <Route path="/payments/eleves" element={<PaymentsEleves />} />
+            <Route path="/payments/maitres" element={<PaymentsMaitres />} />
+            <Route path="/payments/employs" element={<PaymentsSurveillants />} />
+            <Route path="/payments/achats" element={<PaymentsAchats />} /> 
+            <Route path="/payments/expenses" element={<FinanceOverview />} /> 
+            
             <Route path="/backup" element={<Backup />} />
             <Route path="/settings" element={<Settings />} />
           </Route>

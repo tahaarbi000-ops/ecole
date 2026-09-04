@@ -48,6 +48,7 @@ export default function AbsenceRolePage({
   personsEndpoint,
   personsMode,
   personsResponseKey,
+  searchFieldLabel,
 }) {
   const toast = useToast();
   const [items, setItems] = useState([]);
@@ -58,6 +59,8 @@ export default function AbsenceRolePage({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [personsData, setPersonsData] = useState([]);
+      const [isLoading, setIsLoading] = useState(false);
+
 
   const formModal = useDisclosure();
   const deleteDialog = useDisclosure();
@@ -65,6 +68,7 @@ export default function AbsenceRolePage({
  
   useEffect(() => {
     if (!personsEndpoint) return;
+    setIsLoading(true)
 
     Promise.all([
       AxiosToken.get(personsEndpoint),
@@ -83,7 +87,9 @@ export default function AbsenceRolePage({
       })
       .catch(() => {
         console.error(`Erreur lors du chargement de la liste — ${personLabel}`);
-      });
+      }).finally( () => {
+        setIsLoading(false)
+      })
   }, [personsEndpoint, personsResponseKey, personLabel, isSaving]);
 
   const filtered = useMemo(() => {
@@ -136,19 +142,19 @@ export default function AbsenceRolePage({
       sortable: true,
       render: (row) => (
         <Badge bg="ink.100" color="ink.700" borderRadius="full" px={2.5}>
-           {secondaryFieldKey === "niveau"
+           {secondaryFieldKey === "الاقسام"
         ? row.person?.class
-        : secondaryFieldKey === "matiere"
+        : secondaryFieldKey === "المادة"
         ? row.person?.subjects?.map(subject => subject).join(", ")
         : row.person?.role}
         </Badge>
       ),
     },
-    { key: 'date', label: 'Date', sortable: true, render: (row) => formatDate(row.date) },
-    { key: 'reason', label: 'Motif' },
+    { key: 'date', label: 'التاريخ', sortable: true, render: (row) => formatDate(row.date) },
+    { key: 'reason', label: 'السبب' },
     {
       key: 'justification',
-      label: 'Justification',
+      label: 'عذر',
       sortable: true,
       render: (row) => (
         <HStack spacing={1.5}>
@@ -166,7 +172,7 @@ export default function AbsenceRolePage({
       <AbsenceSubNav />
 
       <Wrap spacing={3} mb={5} align="center">
-        <SearchBar value={search} onChange={setSearch} placeholder={`Rechercher — ${personLabel.toLowerCase()}…`} />
+        <SearchBar value={search} onChange={setSearch} placeholder={`بحث - ${personLabel}…`} />
         <Select
           w={{ base: 'full', sm: '200px' }}
           size="sm"
@@ -175,28 +181,38 @@ export default function AbsenceRolePage({
           borderColor="ink.200"
           value={secondaryFilter}
           onChange={(e) => setSecondaryFilter(e.target.value)}
+          sx={{
+          textAlign: 'right',
+          paddingRight: '1rem',
+          paddingLeft: '2rem',
+          '& + div': {
+            insetInlineEnd: 'auto',
+            insetInlineStart: '0.5rem',
+          },
+        }}
         >
-          <option value="">{`Tous — ${secondaryFieldLabel.toLowerCase()}`}</option>
+          <option value="">{`جميع - ${searchFieldLabel}`}</option>
           {secondaryOptions.map((opt) => (
             <option key={opt} value={opt}>{opt}</option>
           ))}
         </Select>
         {(search || secondaryFilter) && (
           <Button size="sm" variant="ghost" onClick={() => { setSearch(''); setSecondaryFilter(''); }}>
-            Réinitialiser
+            إعادة ضبط
           </Button>
         )}
         <HStack spacing={1.5} ml="auto" color="ink.400">
-          <Text fontSize="xs">{filtered.length} résultat(s)</Text>
+          <Text fontSize="xs">{filtered.length} نتيجة</Text>
         </HStack>
-        <Button leftIcon={<Plus size={17} />} onClick={openAdd}>Déclarer une absence</Button>
+        <Button leftIcon={<Plus size={17} />} onClick={openAdd}>الإبلاغ عن الغياب</Button>
       </Wrap>
 
       <DataTable
         columns={columns}
         data={filtered}
         pageSize={8}
-        emptyMessage="Aucune absence enregistrée."
+        isLoading={isLoading}
+        emptyMessage="لم يتم تسجيل أي غيابات."
         renderActions={(row) => (
           <HStack spacing={1}>
             <Tooltip label="Modifier" hasArrow>

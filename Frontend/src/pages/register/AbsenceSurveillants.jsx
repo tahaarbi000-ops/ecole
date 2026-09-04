@@ -9,6 +9,7 @@ export default function AbsenceSurveillants() {
       initialData={absencesSurveillants}
       secondaryFieldKey="role"
       secondaryFieldLabel="Rôle"
+      searchFieldLabel="الوظائف"
       secondaryOptions={supervisorRoles}
       personsEndpoint="/supervisor"
       personsMode="search"

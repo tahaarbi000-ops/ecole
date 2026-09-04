@@ -67,10 +67,15 @@ export default function SupervisorsPageBase({
   const [personToDelete, setPersonToDelete] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+    const [cinError,setCinError] = useState(false)
+        const [isLoading, setIsLoading] = useState(false);
+    
+  
 
   useEffect(() => {
   const loadPeople = async () => {
     try {
+      setIsLoading(true)
       const data = await AxiosToken.get("/supervisor");
 
       setPeople(data.data.supervisors);
@@ -84,17 +89,19 @@ export default function SupervisorsPageBase({
         duration: 4000,
         isClosable: true,
       });
-    } finally {
-    }
+    } finally{
+        setIsLoading(false)
+      }
   };
 
   loadPeople();
-}, [toast,isSaving]);
+}, [toast,isSaving,isDeleting]);
+
+
 
   const formModal = useDisclosure();
   const viewModal = useDisclosure();
   const deleteDialog = useDisclosure();
-  console.log(people)
 
   const filteredPeople = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -103,7 +110,7 @@ export default function SupervisorsPageBase({
       const matchesRole = !roleFilter || p[roleFieldKey] === roleFilter;
       const matchesStatus = !statusFilter || p.statut === statusFilter;
       return matchesSearch && matchesRole && matchesStatus;
-    });
+    }).map((p, idx) => ({ ...p, displayNumber: idx + 1 }));
   }, [people, search, roleFilter, statusFilter, roleFieldKey]);
 
   const openAddModal = () => { setSelectedPerson(null); formModal.onOpen(); };
@@ -111,41 +118,67 @@ export default function SupervisorsPageBase({
   const openViewModal = (person) => { setSelectedPerson(person); viewModal.onOpen(); };
   const askDelete = (person) => { setPersonToDelete(person); deleteDialog.onOpen(); };
 
-   const handleSubmit = async (formData) => {
+const handleSubmit = async (formData) => {
     setIsSaving(true);
+    setCinError(false)
 
     try {
-        const response = await AxiosToken.post(
-            "/supervisor",
-            formData
-        );
+        let response;
 
+        if (selectedPerson) {
+            response = await AxiosToken.put(
+                `/supervisor/${selectedPerson.id}`,
+                formData
+            );
+        } else {
+            response = await AxiosToken.post(
+                "/supervisor",
+                formData
+            );
+        }
 
         formModal.onClose();
 
     } catch (error) {
-        console.error(error);
+      if(error.response.status == 400){
+        setCinError(true)
+      }
     } finally {
         setIsSaving(false);
     }
 };
 
-  const handleDelete = () => {
+ const handleDelete = async () => {
     setIsDeleting(true);
-    setTimeout(() => {
-      setPeople((prev) => prev.filter((p) => p.id !== personToDelete.id));
-      toast({ title: 'Supprimé', status: 'info', duration: 3000, isClosable: true });
+    try {
+      await AxiosToken.delete(`/supervisor/${personToDelete.id}`)
+      toast({
+        title: 'تم حذف المشرف بنجاح',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+
+    } catch {
+      toast({
+        title: 'حدث خطأ أثناء حذف المشرف',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
       setIsDeleting(false);
       deleteDialog.onClose();
-      setPersonToDelete(null);
-    }, 600);
+      setStudentToDelete(null);
+    }
   };
 
   const columns = [
-    { label: '#', sortable: false,render: (row, index) => index + 1, },
-    { key: 'name', label: 'Nom', sortable: true },
-    { key: 'last_name', label: 'Prénom', sortable: true },
-    { key: 'phone', label: 'Téléphone' },
+    { label: '#', sortable: false,render: (row) => row.displayNumber },
+    { key: 'cin', label: 'رقم بطاقة التعريف', sortable: true },
+    { key: 'name', label: 'الاسم', sortable: true },
+    { key: 'last_name', label: 'اللقب', sortable: true },
+    { key: 'phone', label: 'رقم الهاتف' },
     {
       key: roleFieldKey,
       label: roleFieldLabel,
@@ -156,24 +189,23 @@ export default function SupervisorsPageBase({
         </Badge>
       ),
     },
-    { key: 'date_deposited', label: 'Date dépôt salaire', sortable: true, render: (row) => formatDate(row.date_deposited) },
     {
       key: 'salary',
-      label: 'Salaire',
+      label: 'الراتب',
       sortable: true,
       isNumeric: true,
       render: (row) => `${row.salary.toLocaleString("FR-fr")} DT`,
     },
     ...(showStatus
       ? [{
-          key: 'statut',
-          label: 'Statut',
+          key: 'status',
+          label: 'الحالة',
           sortable: true,
           render: (row) => {
-            const c = STATUS_COLORS[row.statut] || { bg: 'ink.100', color: 'ink.700' };
+            const c = STATUS_COLORS[row.status] || { bg: 'ink.100', color: 'ink.700' };
             return (
               <Badge bg={c.bg} color={c.color} borderRadius="full" px={2.5}>
-                {row.statut}
+                {row.status}
               </Badge>
             );
           },
@@ -182,24 +214,24 @@ export default function SupervisorsPageBase({
   ];
 
   return (
-    <Box>
+    <Box dir='rtl'>
       <PageHeader
         title={pageTitle}
-        subtitle={`${people.length} membres du personnel enregistrés`}
+        subtitle={`${people.length} أعضاء الموظفين المسجلين `}
         actions={
           <>
             <Tooltip label="Export bientôt disponible" hasArrow>
               <IconButton aria-label="Exporter" icon={<Download size={17} />} variant="outline" isDisabled />
             </Tooltip>
             <Button leftIcon={<Plus size={17} />} onClick={openAddModal}>
-              Ajouter {entityLabel}
+               اضافة {entityLabel}
             </Button>
           </>
         }
       />
 
       <Wrap spacing={3} mb={5} align="center">
-        <SearchBar value={search} onChange={setSearch} placeholder="Rechercher par nom, prénom, téléphone…" />
+        <SearchBar value={search} onChange={setSearch} placeholder="ابحث بالاسم، أو اللقب، أو رقم الهاتف…" />
 
         <Select
           w={{ base: 'full', sm: '210px' }}
@@ -209,8 +241,17 @@ export default function SupervisorsPageBase({
           borderColor="ink.200"
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
+           sx={{
+          textAlign: 'right',
+          paddingRight: '1rem',
+          paddingLeft: '2rem',
+          '& + div': {
+            insetInlineEnd: 'auto',
+            insetInlineStart: '0.5rem',
+          },
+        }}
         >
-          <option value="">{`Tous — ${roleFieldLabel.toLowerCase()}`}</option>
+          <option value="">{`جميع — ${roleFieldLabel.toLowerCase()}`}</option>
           {roleOptions.map((opt) => (
             <option key={opt} value={opt}>{opt}</option>
           ))}
@@ -225,8 +266,17 @@ export default function SupervisorsPageBase({
             borderColor="ink.200"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
+             sx={{
+          textAlign: 'right',
+          paddingRight: '1rem',
+          paddingLeft: '2rem',
+          '& + div': {
+            insetInlineEnd: 'auto',
+            insetInlineStart: '0.5rem',
+          },
+        }}
           >
-            <option value="">Tous les statuts</option>
+            <option value="">جميع الحالات</option>
             {statusOptions.map((opt) => (
               <option key={opt} value={opt}>{opt}</option>
             ))}
@@ -235,13 +285,13 @@ export default function SupervisorsPageBase({
 
         {(search || roleFilter || statusFilter) && (
           <Button size="sm" variant="ghost" onClick={() => { setSearch(''); setRoleFilter(''); setStatusFilter(''); }}>
-            Réinitialiser
+             إعادة ضبط
           </Button>
         )}
 
         <HStack spacing={1.5} ml="auto" color="ink.400">
           <Users size={15} />
-          <Text fontSize="xs">{filteredPeople.length} résultat(s)</Text>
+          <Text fontSize="xs">{filteredPeople.length} نتيجة</Text>
         </HStack>
       </Wrap>
 
@@ -249,7 +299,8 @@ export default function SupervisorsPageBase({
         columns={columns}
         data={filteredPeople}
         pageSize={8}
-        emptyMessage="Aucun résultat ne correspond à ces critères."
+        isLoading={isLoading}
+        emptyMessage="لا توجد نتائج مطابقة لهذه المعايير."
         renderActions={(row) => (
           <HStack spacing={1}>
             <Tooltip label="Voir" hasArrow>
@@ -285,6 +336,7 @@ export default function SupervisorsPageBase({
         roleOptions={roleOptions}
         showStatus={showStatus}
         statusOptions={statusOptions}
+        cinError={cinError}
       />
 
       <SupervisorsViewModal
@@ -297,17 +349,17 @@ export default function SupervisorsPageBase({
       />
 
       <ConfirmDialog
-        isOpen={deleteDialog.isOpen}
-        onClose={deleteDialog.onClose}
-        onConfirm={handleDelete}
-        isLoading={isDeleting}
-        title="Confirmer la suppression"
-        message={
-          personToDelete
-            ? `Voulez-vous vraiment supprimer ${personToDelete.prenom} ${personToDelete.nom} ? Cette action est irréversible.`
-            : ''
-        }
-      />
+  isOpen={deleteDialog.isOpen}
+  onClose={deleteDialog.onClose}
+  onConfirm={handleDelete}
+  isLoading={isDeleting}
+  title="تأكيد الحذف"
+  message={
+    personToDelete
+      ? `هل أنت متأكد من حذف ${personToDelete.name} ${personToDelete.last_name}؟ هذا الإجراء لا يمكن التراجع عنه.`
+      : ''
+  }
+/>
     </Box>
   );
 }

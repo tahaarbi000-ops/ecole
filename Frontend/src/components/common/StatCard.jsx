@@ -19,10 +19,7 @@ export default function StatCard({
   icon,
   iconColor = 'brand.600',
   iconBg = 'brand.50',
-  trend,
-  trendLabel = 'vs mois dernier',
 }) {
-  const isPositive = typeof trend === 'number' && trend >= 0;
 
   return (
     <Box
@@ -58,22 +55,7 @@ export default function StatCard({
         </Text>
       </HStack>
 
-      {typeof trend === 'number' && (
-        <HStack spacing={1} mt={2}>
-          <Icon
-            as={isPositive ? TrendingUp : TrendingDown}
-            boxSize={3.5}
-            color={isPositive ? 'positive.500' : 'danger.500'}
-          />
-          <Text fontSize="xs" fontWeight="600" color={isPositive ? 'positive.500' : 'danger.500'}>
-            {isPositive ? '+' : ''}
-            {trend}%
-          </Text>
-          <Text fontSize="xs" color="ink.400">
-            {trendLabel}
-          </Text>
-        </HStack>
-      )}
+     
     </Box>
   );
 }

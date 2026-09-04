@@ -58,8 +58,8 @@ const colors = {
 };
 
 const fonts = {
-  heading: `'Outfit', 'Inter', sans-serif`,
-  body: `'Inter', sans-serif`,
+  heading: `'Cairo', sans-serif`,
+  body: `'Cairo', sans-serif`,
 };
 
 const styles = {

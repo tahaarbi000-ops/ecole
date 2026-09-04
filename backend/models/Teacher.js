@@ -7,6 +7,9 @@ const Teacher  = sequelize.define("teachers",{
         primaryKey:true,
         autoIncrement:true
     },
+    cin:{
+        type:DataTypes.STRING,
+    },
     name:{
         type:DataTypes.STRING,
     },
@@ -16,14 +19,15 @@ const Teacher  = sequelize.define("teachers",{
     phone:{
         type:DataTypes.STRING,
     },
-    salary :{
+    price_by_hour :{
         type: DataTypes.DECIMAL(10, 2),
     },
-    date_deposited:{
-        type:DataTypes.DATEONLY,
-    },
     status:{
-        type:DataTypes.ENUM("actif","inactif","en congé"),
+        type:DataTypes.ENUM('نشط', 'في إجازة', 'غير نشط'),
+    },
+     is_deleted:{
+        type:DataTypes.BOOLEAN,
+        defaultValue:false
     },
 })
 module.exports = Teacher

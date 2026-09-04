@@ -16,11 +16,14 @@ export default function FormModal({ isOpen, onClose, title, children, footer, si
   return (
     <Modal isOpen={isOpen} onClose={onClose} size={size} isCentered scrollBehavior="inside">
       <ModalOverlay />
-      <ModalContent borderRadius="2xl" mx={4}>
+      <ModalContent dir='rtl' borderRadius="2xl" mx={4}>
         <ModalHeader fontFamily="heading" fontWeight="700" color="ink.900" borderBottom="1px solid" borderColor="ink.100">
           {title}
         </ModalHeader>
-        <ModalCloseButton />
+        <ModalCloseButton
+  insetInlineStart="3"
+  insetInlineEnd="auto"
+/>
         <ModalBody py={5}>{children}</ModalBody>
         {footer && (
           <ModalFooter borderTop="1px solid" borderColor="ink.100" gap={2}>

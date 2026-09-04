@@ -14,7 +14,7 @@ exports.createScoring = [
     body("sense")
         .notEmpty()
         .withMessage("Sense is required.")
-        .isIn(["entée", "sortie"])
+        .isIn(["دخول", "خروج"])
         .withMessage("Invalid sense."),
 
     body("date")

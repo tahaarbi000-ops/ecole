@@ -3,6 +3,6 @@ const { getAllSubscription, paySubscription } = require("../controllers/Subscrip
 const router = express.Router()
 
 router.get("/",getAllSubscription)
-router.post("/",paySubscription)
+router.post("/:id/pay",paySubscription)
 
 module.exports = router

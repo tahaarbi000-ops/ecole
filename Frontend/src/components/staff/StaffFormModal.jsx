@@ -19,6 +19,7 @@ import {
   Tag,
   TagLabel,
   TagCloseButton,
+  InputLeftElement,
 } from '@chakra-ui/react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
@@ -27,47 +28,48 @@ import FormModal from '../common/FormModal';
 const EMPTY_FORM = {
   name: '',
   last_name: '',
+  cin:"",
   phone: '',
   matieres: [],
-  date_deposited: '',
-  salary: '',
-  status: 'actif',
+  price_by_hour: '',
+  status: 'نشط',
 };
 
 const validationSchema = Yup.object({
   name: Yup.string()
     .trim()
-    .required('Le nom est requis.'),
+    .required('الاسم مطلوب.'),
 
   last_name: Yup.string()
     .trim()
-    .required('Le prénom est requis.'),
+    .required('اللقب مطلوب.'),
+
+    cin: Yup.string()
+    .trim()
+    .required('رقم بطاقة التعريف مطلوب.')
+    .matches(/^\d{8}$/, 'يجب أن يتكون رقم بطاقة التعريف من 8 أرقام.'),
 
   phone: Yup.string()
     .trim()
-    .required('Le téléphone est requis.')
-    .matches(/^\d{8}$/, 'Le numéro doit contenir 8 chiffres.'),
+    .required('رقم الهاتف مطلوب.')
+    .matches(/^\d{8}$/, 'يجب أن يتكون رقم الهاتف من 8 أرقام.'),
 
   matieres: Yup.array()
     .of(Yup.string())
-    .min(1, 'Sélectionnez au moins une matière.')
-    .required('Les matières sont requises.'),
+    .min(1, 'يرجى اختيار مادة واحدة على الأقل.')
+    .required('المواد مطلوبة.'),
 
-  date_deposited: Yup.date()
-    .required('La date est requise.')
-    .typeError('Date invalide.'),
-
-  salary: Yup.number()
-    .typeError('Le salaire doit être un nombre.')
-    .positive('Le salaire doit être positif.')
-    .required('Le salaire est requis.'),
+  price_by_hour: Yup.number()
+    .typeError('يجب أن يكون سعر الساعة رقمًا.')
+    .positive('يجب أن يكون سعر الساعة أكبر من صفر.')
+    .required('سعر الساعة مطلوب.'),
 
   status: Yup.string()
     .oneOf(
-      ['actif', 'inactif', 'en congé'],
-      'Statut invalide.'
+      ['نشط', 'في إجازة', 'غير نشط'],
+      'الحالة غير صالحة.'
     )
-    .required('Le statut est requis.'),
+    .required('الحالة مطلوبة.'),
 });
 
 export default function StaffFormModal({
@@ -81,8 +83,10 @@ export default function StaffFormModal({
   roleOptions,
   showStatus = false,
   statusOptions = [],
+  cinError
 }) {
   const isEditMode = Boolean(person);
+  console.log(person)
 
   const formik = useFormik({
     initialValues: EMPTY_FORM,
@@ -101,23 +105,21 @@ export default function StaffFormModal({
   useEffect(() => {
     if (isOpen) {
       if (person) {
-        const personMatieres = person.matieres;
+       const personMatieres = person.subject;
 
-        formik.setValues({
-          ...EMPTY_FORM,
-          ...person,
-          salary: person.salary ?? '',
-          matieres: Array.isArray(personMatieres)
-            ? personMatieres
-            : personMatieres
-            ? [personMatieres]
-            : [],
-        });
+formik.setValues({
+  ...EMPTY_FORM,
+  ...person,
+  price_by_hour: person.price_by_hour ?? '',
+  matieres: Array.isArray(personMatieres)
+    ? personMatieres.map((matiere) => matiere.label)
+    : [],
+});
       } else {
         formik.resetForm({
           values: {
             ...EMPTY_FORM,
-            status: statusOptions[0] || 'actif',
+            status: statusOptions[0] || 'نشط',
           },
         });
       }
@@ -139,13 +141,13 @@ export default function StaffFormModal({
       onClose={onClose}
       title={
         isEditMode
-          ? `Modifier — ${person.last_name} ${person.name}`
-          : `Ajouter ${entityLabel}`
+          ? `تعديل — ${person.last_name} ${person.name}`
+          : `اضافة ${entityLabel}`
       }
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
-            Annuler
+            الغاء
           </Button>
 
           <Button
@@ -154,8 +156,8 @@ export default function StaffFormModal({
             loadingText="Enregistrement…"
           >
             {isEditMode
-              ? 'Enregistrer les modifications'
-              : 'Ajouter'}
+              ? 'حفظ التغييرات'
+              : 'أضف المعلم '}
           </Button>
         </>
       }
@@ -166,6 +168,30 @@ export default function StaffFormModal({
           columns={{ base: 1, md: 2 }}
           spacing={4}
         >
+
+          <FormControl
+            isInvalid={
+              (formik.touched.cin && Boolean(formik.errors.cin) || cinError)
+            }
+            isRequired
+          >
+            <FormLabel fontSize="sm">
+              رقم بطاقة التعريف
+            </FormLabel>
+
+            <Input
+              name="cin"
+              value={formik.values.cin}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              placeholder="12345678"
+            />
+
+            <FormErrorMessage>
+              {formik.errors.cin || cinError && "رقم بطاقة التعريف مستعمل"}
+            </FormErrorMessage>
+          </FormControl>
+
           {/* Nom */}
           <FormControl
             isInvalid={
@@ -174,7 +200,7 @@ export default function StaffFormModal({
             isRequired
           >
             <FormLabel fontSize="sm">
-              Nom
+              الاسم
             </FormLabel>
 
             <Input
@@ -182,7 +208,7 @@ export default function StaffFormModal({
               value={formik.values.name}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
-              placeholder="Ben Ali"
+              placeholder="محمد"
             />
 
             <FormErrorMessage>
@@ -199,7 +225,7 @@ export default function StaffFormModal({
             isRequired
           >
             <FormLabel fontSize="sm">
-              Prénom
+              اللقب
             </FormLabel>
 
             <Input
@@ -207,7 +233,7 @@ export default function StaffFormModal({
               value={formik.values.last_name}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
-              placeholder="Mohamed"
+              placeholder="علي"
             />
 
             <FormErrorMessage>
@@ -224,7 +250,8 @@ export default function StaffFormModal({
             isRequired
           >
             <FormLabel fontSize="sm">
-              Téléphone
+               رقم الهاتف
+
             </FormLabel>
 
             <Input
@@ -254,16 +281,17 @@ export default function StaffFormModal({
 
             <Menu closeOnSelect={false}>
               <MenuButton
+
                 as={Button}
                 variant="outline"
                 fontWeight="normal"
                 w="100%"
-                textAlign="left"
+                textAlign="right"
                 onBlur={() => formik.setFieldTouched('matieres', true)}
               >
                 {selectedMatieres.length
-                  ? `${selectedMatieres.length} sélectionnée(s)`
-                  : 'Sélectionner matière(s)'}
+                  ? `${selectedMatieres.length} تم الاختيار`
+                  : 'اختر المواد'}
               </MenuButton>
 
               <MenuList maxH="240px" overflowY="auto" zIndex="popover">
@@ -301,65 +329,44 @@ export default function StaffFormModal({
             </FormErrorMessage>
           </FormControl>
 
-          {/* Date */}
-          <FormControl
-            isInvalid={
-              formik.touched.date_deposited &&
-              Boolean(formik.errors.date_deposited)
-            }
-            isRequired
-          >
-            <FormLabel fontSize="sm">
-              Date dépôt salaire
-            </FormLabel>
-
-            <Input
-              type="date"
-              name="date_deposited"
-              value={formik.values.date_deposited}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-            />
-
-            <FormErrorMessage>
-              {formik.errors.date_deposited}
-            </FormErrorMessage>
-          </FormControl>
 
           {/* Salaire */}
           <FormControl
             isInvalid={
-              formik.touched.salary &&
-              Boolean(formik.errors.salary)
+              formik.touched.price_by_hour &&
+              Boolean(formik.errors.price_by_hour)
             }
             isRequired
           >
             <FormLabel fontSize="sm">
-              Salaire
+              سعر الساعة
             </FormLabel>
 
             <InputGroup>
               <Input
                 type="number"
                 min="0"
-                name="salary"
-                value={formik.values.salary}
+                name="price_by_hour"
+                value={formik.values.price_by_hour}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
-                placeholder="1200"
+                placeholder="15"
+                textAlign={"right"}
+                dir='ltr'
               />
 
-              <InputRightElement
+              <InputLeftElement
                 w="3.2rem"
                 color="ink.400"
                 fontSize="sm"
+                dir='ltr'
               >
                 DT
-              </InputRightElement>
+              </InputLeftElement>
             </InputGroup>
 
             <FormErrorMessage>
-              {formik.errors.salary}
+              {formik.errors.price_by_hour}
             </FormErrorMessage>
           </FormControl>
 
@@ -372,7 +379,7 @@ export default function StaffFormModal({
               }
             >
               <FormLabel fontSize="sm">
-                Statut
+                الحالة
               </FormLabel>
 
               <Select
@@ -380,6 +387,15 @@ export default function StaffFormModal({
                 value={formik.values.status}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
+                 sx={{
+          textAlign: 'right',
+          paddingRight: '1rem',
+          paddingLeft: '2rem',
+          '& + div': {
+            insetInlineEnd: 'auto',
+            insetInlineStart: '0.5rem',
+          },
+        }}
               >
                 {statusOptions.map((opt) => (
                   <option key={opt} value={opt}>

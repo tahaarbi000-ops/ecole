@@ -3,10 +3,9 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { GraduationCap, Users, ShieldCheck, Briefcase } from 'lucide-react';
 
 const CATEGORIES = [
-  { label: 'Élèves', to: '/register/absences/eleves', icon: GraduationCap },
-  { label: 'Maîtres', to: '/register/absences/maitres', icon: Users },
-  { label: 'Surveillants', to: '/register/absences/surveillants', icon: ShieldCheck },
-  { label: 'Employés', to: '/register/absences/employes', icon: Briefcase },
+  { label: 'المعلمون', to: '/register/absences/maitres', icon: Users },
+  { label: 'المشرفون', to: '/register/absences/surveillants', icon: ShieldCheck },
+  { label: 'الموظفين', to: '/register/absences/employes', icon: Briefcase },
 ];
 
 /**

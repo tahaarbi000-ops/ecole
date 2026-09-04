@@ -4,8 +4,8 @@ import { CalendarX2, Clock3, MessageSquareText, DoorOpen } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 
 const SUB_NAV = [
-  { label: 'Absences', to: '/register/absences', icon: CalendarX2, matchPrefix: '/register/absences' },
-  { label: 'Maîtres — Entrées/Sorties', to: '/register/teacher-movements', icon: DoorOpen },
+  { label: 'الغياب', to: '/register/absences', icon: CalendarX2, matchPrefix: '/register/absences' },
+  { label: 'المعلمون — الحضور والانصراف', to: '/register/teacher-movements', icon: DoorOpen },
 ];
 
 export default function Register() {
@@ -18,8 +18,10 @@ export default function Register() {
   }
 
   return (
-    <Box>
-      <PageHeader title="Registre scolaire" subtitle="Absences, retards, observations et pointage des maîtres." />
+    <Box
+    dir='rtl'
+    >
+      <PageHeader title="سجل المدرسة" subtitle="سجلات الغياب وحضور المعلمين." />
 
       <HStack
         spacing={1}

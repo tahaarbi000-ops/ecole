@@ -9,6 +9,7 @@ import {
   Button,
   InputGroup,
   InputRightElement,
+  InputLeftElement,
 } from '@chakra-ui/react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
@@ -17,47 +18,56 @@ import FormModal from '../common/FormModal';
 const EMPTY_FORM = {
   name: '',
   last_name: '',
+  cin:'',
   phone: '',
-  date_deposited: '',
   salary: '',
-  status: 'actif',
+  status: 'نشط',
+  role:""
 };
 
 const validationSchema = Yup.object({
   name: Yup.string()
     .trim()
-    .required('Le nom est requis.'),
+    .required('الاسم مطلوب.'),
 
   last_name: Yup.string()
     .trim()
-    .required('Le prénom est requis.'),
+    .required('اللقب مطلوب.'),
 
   phone: Yup.string()
     .trim()
-    .required('Le téléphone est requis.')
-    .matches(/^\d{8}$/, 'Le numéro doit contenir 8 chiffres.'),
+    .required('رقم الهاتف مطلوب.')
+    .matches(/^\d{8}$/, 'يجب أن يتكون رقم الهاتف من 8 أرقام.'),
 
-  date_deposited: Yup.date()
-    .required('La date est requise.')
-    .typeError('Date invalide.'),
+    cin: Yup.string()
+    .trim()
+    .required('رقم بطاقة التعريف مطلوب.')
+    .matches(/^\d{8}$/, 'يجب أن يتكون رقم بطاقة التعريف من 8 أرقام.'),
 
   salary: Yup.number()
-    .typeError('Le salaire doit être un nombre.')
-    .positive('Le salaire doit être positif.')
-    .required('Le salaire est requis.'),
-    role: Yup.string()
-        .oneOf(
-          ["secrétaire","comptable","chauffeur","agent de nettoyage","agent de sécurité"],
-          'Rôle invalide.'
-        )
-        .required('Le rôle est requis.'),
+    .typeError('الراتب يجب أن يكون رقمًا.')
+    .positive('الراتب يجب أن يكون موجبًا.')
+    .required('الراتب مطلوب.'),
 
   status: Yup.string()
     .oneOf(
-      ['actif', 'inactif', 'en congé'],
-      'Statut invalide.'
+      ["نشط", "في إجازة", "غير نشط"],
+      'حالة غير صالحة.'
     )
-    .required('Le statut est requis.'),
+    .required('الحالة مطلوبة.'),
+
+  role: Yup.string()
+    .oneOf(
+      [
+        'كاتب(ة)',
+  'محاسب(ة)',
+  'سائق',
+  'عامل(ة) نظافة',
+  'عون أمن',
+      ],
+      'الدور غير صالح.'
+    )
+    .required('الدور مطلوب.'),
 });
 
 export default function EmployFormModal({
@@ -70,8 +80,9 @@ export default function EmployFormModal({
   roleFieldKey,
   roleFieldLabel,
   roleOptions,
-  showStatus = false,
+  showStatus = true,
   statusOptions = [],
+  cinError
 }) {
   const isEditMode = Boolean(person);
 
@@ -115,32 +126,54 @@ export default function EmployFormModal({
       title={
         isEditMode
           ? `Modifier — ${person.last_name} ${person.name}`
-          : `Ajouter ${entityLabel}`
+          : `اضافة ${entityLabel}`
       }
       footer={
         <>
           <Button variant="outline" onClick={onClose}>
-            Annuler
-          </Button>
+  إلغاء
+</Button>
 
-          <Button
-            onClick={formik.handleSubmit}
-            isLoading={isSaving}
-            loadingText="Enregistrement…"
-          >
-            {isEditMode
-              ? 'Enregistrer les modifications'
-              : 'Ajouter'}
-          </Button>
+<Button
+  onClick={formik.handleSubmit}
+  isLoading={isSaving}
+  loadingText="جارٍ الحفظ…"
+>
+  {isEditMode
+    ? 'حفظ التعديلات'
+    : 'إضافة'}
+</Button>
         </>
       }
       size="lg"
     >
-      <form onSubmit={formik.handleSubmit} noValidate>
+      <form dir='rtl' onSubmit={formik.handleSubmit} noValidate>
         <SimpleGrid
           columns={{ base: 1, md: 2 }}
           spacing={4}
         >
+          <FormControl
+            isInvalid={
+              (formik.touched.cin && Boolean(formik.errors.cin) || cinError)
+            }
+            isRequired
+          >
+            <FormLabel fontSize="sm">
+              رقم بطاقة التعريف
+            </FormLabel>
+
+            <Input
+              name="cin"
+              value={formik.values.cin}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              placeholder="12345678"
+            />
+
+            <FormErrorMessage>
+              {formik.errors.cin || cinError && "رقم بطاقة التعريف مستعمل"}
+            </FormErrorMessage>
+          </FormControl>
           {/* Nom */}
           <FormControl
             isInvalid={
@@ -149,7 +182,7 @@ export default function EmployFormModal({
             isRequired
           >
             <FormLabel fontSize="sm">
-              Nom
+              الاسم
             </FormLabel>
 
             <Input
@@ -157,7 +190,7 @@ export default function EmployFormModal({
               value={formik.values.name}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
-              placeholder="Ben Ali"
+              placeholder="محمد"
             />
 
             <FormErrorMessage>
@@ -174,7 +207,7 @@ export default function EmployFormModal({
             isRequired
           >
             <FormLabel fontSize="sm">
-              Prénom
+              اللقب
             </FormLabel>
 
             <Input
@@ -182,7 +215,7 @@ export default function EmployFormModal({
               value={formik.values.last_name}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
-              placeholder="Mohamed"
+              placeholder="علي"
             />
 
             <FormErrorMessage>
@@ -199,7 +232,7 @@ export default function EmployFormModal({
             isRequired
           >
             <FormLabel fontSize="sm">
-              Téléphone
+             رقم الهاتف
             </FormLabel>
 
             <Input
@@ -216,18 +249,23 @@ export default function EmployFormModal({
           </FormControl>
 
           <FormControl
+          isInvalid={
+              formik.touched.role &&
+              Boolean(formik.errors.role)
+            }
             isRequired
           >
             <FormLabel fontSize="sm">
-              Rôle
+              وظيفة
             </FormLabel>
 
             <Select
               name="role"
-              placeholder={`Sélectionner rôle`}
+              placeholder={`اختر الوظيفة`}
               value={formik.values.role}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
+              sx={{ textAlign: 'right', paddingRight: '1rem', paddingLeft: '2rem', '& + div': { insetInlineEnd: 'auto', insetInlineStart: '0.5rem' } }}
             >
               {roleOptions.map((opt) => (
                 <option key={opt} value={opt}>
@@ -235,30 +273,8 @@ export default function EmployFormModal({
                 </option>
               ))}
             </Select>
-          </FormControl>
-
-          {/* Date */}
-          <FormControl
-            isInvalid={
-              formik.touched.date_deposited &&
-              Boolean(formik.errors.date_deposited)
-            }
-            isRequired
-          >
-            <FormLabel fontSize="sm">
-              Date dépôt salaire
-            </FormLabel>
-
-            <Input
-              type="date"
-              name="date_deposited"
-              value={formik.values.date_deposited}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-            />
-
             <FormErrorMessage>
-              {formik.errors.date_deposited}
+              {formik.errors.role}
             </FormErrorMessage>
           </FormControl>
 
@@ -271,7 +287,7 @@ export default function EmployFormModal({
             isRequired
           >
             <FormLabel fontSize="sm">
-              Salaire
+              الراتب
             </FormLabel>
 
             <InputGroup>
@@ -283,15 +299,17 @@ export default function EmployFormModal({
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
                 placeholder="1200"
+                dir="ltr"
+                textAlign="right"
               />
 
-              <InputRightElement
+              <InputLeftElement
                 w="3.2rem"
                 color="ink.400"
                 fontSize="sm"
               >
-                DT
-              </InputRightElement>
+                دت
+              </InputLeftElement>
             </InputGroup>
 
             <FormErrorMessage>
@@ -300,7 +318,6 @@ export default function EmployFormModal({
           </FormControl>
 
           {/* Status */}
-          {showStatus && (
             <FormControl
               isInvalid={
                 formik.touched.status &&
@@ -316,6 +333,15 @@ export default function EmployFormModal({
                 value={formik.values.status}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
+                sx={{
+          textAlign: 'right',
+          paddingRight: '1rem',
+          paddingLeft: '2rem',
+          '& + div': {
+            insetInlineEnd: 'auto',
+            insetInlineStart: '0.5rem',
+          },
+        }}
               >
                 {statusOptions.map((opt) => (
                   <option key={opt} value={opt}>
@@ -328,7 +354,7 @@ export default function EmployFormModal({
                 {formik.errors.status}
               </FormErrorMessage>
             </FormControl>
-          )}
+          
         </SimpleGrid>
       </form>
     </FormModal>

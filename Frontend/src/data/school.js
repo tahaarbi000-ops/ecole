@@ -15,13 +15,20 @@ export const schoolInfo = {
 };
 
 export const levels = [
-  'Préscolaire',
-  '1ère année',
-  '2ème année',
-  '3ème année',
-  '4ème année',
-  '5ème année',
-  '6ème année',
+  'التحضيري',
+'السنة الأولى',
+'السنة الثانية',
+'السنة الثالثة',
+'السنة الرابعة',
+'السنة الخامسة',
+'السنة السادسة',
+];
+
+export const paiements = [
+  'يدفع شهريًا',
+  'يدفع بالثلاثي',
+'يدفع سنويًا',
+'غير معني بالدفع',
 ];
 
 export const tuitionFees = [
@@ -61,8 +68,8 @@ export const dashboardStats = {
 };
 
 export const genderDistribution = [
-  { name: 'Filles', value: 430, color: '#7CC7C0' },
-  { name: 'Garçons', value: 420, color: '#2C6FD1' },
+  { name: 'بنت', value: 430, color: '#7CC7C0' },
+  { name: 'ولد', value: 420, color: '#2C6FD1' },
 ];
 
 export const studentsByLevel = [

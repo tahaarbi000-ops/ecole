@@ -5,10 +5,11 @@ import { levels } from '../../data/school';
 export default function AbsenceEleves() {
   return (
     <AbsenceRolePage
-      personLabel="Élève"
+      personLabel="تلميذ"
       initialData={absencesEleves}
       secondaryFieldKey="niveau"
-      secondaryFieldLabel="Niveau"
+      secondaryFieldLabel="القسم"
+      searchFieldLabel="الاقسام"
       secondaryOptions={levels}
       personsEndpoint="/student"
       personsMode="students"

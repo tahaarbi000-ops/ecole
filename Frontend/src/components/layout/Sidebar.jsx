@@ -20,23 +20,44 @@ import {
   Briefcase,
   BookOpenCheck,
   Wallet,
-  DatabaseBackup,
   Settings,
   ChevronsLeft,
   ChevronsRight,
+  CalendarRange,
+  ClipboardList,
 } from 'lucide-react';
 import Logo from '../common/Logo';
+import { useAuth } from '../../context/AuthContext';
 
+/**
+ * Chaque item a un champ `scope` qui indique dans quel(s) type(s)
+ * d'établissement il doit apparaître :
+ *  - 'ecole'    -> uniquement pour une école
+ *  - 'academie' -> uniquement pour une académie de formation
+ *  - 'both'     -> visible dans les deux cas
+ *
+ * Le type d'établissement vient de l'utilisateur connecté
+ * (user.establishmentType : 'ecole' | 'academie'), stocké par
+ * exemple au niveau de l'organisation/tenant en base de données.
+ */
 const NAV_ITEMS = [
-  { label: 'Tableau de bord', to: '/dashboard', icon: LayoutDashboard },
-  { label: 'Élèves', to: '/students', icon: GraduationCap },
-  { label: 'Maîtres', to: '/teachers', icon: Users },
-  { label: 'Surveillants', to: '/supervisors', icon: ShieldCheck },
-  { label: 'Employés', to: '/employees', icon: Briefcase },
-  { label: 'Registre', to: '/register', icon: BookOpenCheck, matchPrefix: '/register' },
-  { label: 'Paiements', to: '/payments', icon: Wallet },
-  { label: 'Sauvegarde', to: '/backup', icon: DatabaseBackup },
-  { label: 'Paramètres', to: '/settings', icon: Settings },
+  { label: 'لوحة التحكم', to: '/dashboard', icon: LayoutDashboard, scope: 'both' },
+
+  // --- Spécifique école ---
+  { label: 'التلاميذ', to: '/students', icon: GraduationCap, scope: 'ecole' },
+  { label: 'سجل الحضور', to: '/register', icon: BookOpenCheck, matchPrefix: '/register', scope: 'ecole' },
+
+  // --- Spécifique académie ---
+  { label: 'المتدربون', to: '/trainees', icon: GraduationCap, scope: 'academie' },
+  { label: 'الدورات التدريبية', to: '/sessions', icon: CalendarRange, matchPrefix: '/sessions', scope: 'academie' },
+  { label: 'التسجيلات', to: '/enrollments', icon: ClipboardList, matchPrefix: '/enrollments', scope: 'academie' },
+
+  // --- Commun (socle partagé) ---
+  { label: 'المعلمون', to: '/teachers', icon: Users, scope: 'both' },
+  { label: 'المشرفون', to: '/supervisors', icon: ShieldCheck, scope: 'both' },
+  { label: 'الموظفين', to: '/employees', icon: Briefcase, scope: 'both' },
+  { label: 'المدفوعات', to: '/payments', icon: Wallet, matchPrefix: '/payments', scope: 'both' },
+  { label: 'الإعدادات', to: '/settings', icon: Settings, scope: 'both' },
 ];
 
 function NavItem({ item, collapsed, onClick }) {
@@ -47,6 +68,7 @@ function NavItem({ item, collapsed, onClick }) {
 
   const content = (
     <HStack
+      dir="rtl"
       as={NavLink}
       to={item.to}
       onClick={onClick}
@@ -94,7 +116,24 @@ function NavItem({ item, collapsed, onClick }) {
   return content;
 }
 
-function SidebarContent({ collapsed, onToggleCollapse, onNavigate, showCollapseToggle = true }) {
+function SidebarContent({
+  collapsed,
+  onToggleCollapse,
+  onNavigate,
+  showCollapseToggle = true,
+}) {
+  const { user } = useAuth();
+  const isDirector = user?.role === 'مديرة';
+
+  // 'ecole' ou 'academie' — vient du profil de l'établissement de l'utilisateur
+  const establishmentType = user?.establishmentType || 'ecole';
+
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    const matchesScope = item.scope === 'both' || item.scope === establishmentType;
+    const matchesRole = isDirector || item.to !== '/dashboard';
+    return matchesScope && matchesRole;
+  });
+
   return (
     <VStack
       h="full"
@@ -105,7 +144,12 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate, showCollapseT
       px={collapsed ? 3 : 4}
       position="relative"
     >
-      <Box px={collapsed ? 0 : 1} mb={6} display="flex" justifyContent={collapsed ? 'center' : 'flex-start'}>
+      <Box
+        px={collapsed ? 0 : 1}
+        mb={6}
+        display="flex"
+        justifyContent={collapsed ? 'center' : 'flex-end'}
+      >
         {collapsed ? (
           <Logo variant="mark" size={38} />
         ) : (
@@ -114,7 +158,7 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate, showCollapseT
       </Box>
 
       <VStack spacing={1} align="stretch" flex={1} overflowY="auto">
-        {NAV_ITEMS.map((item) => (
+        {visibleNavItems.map((item) => (
           <NavItem key={item.to} item={item} collapsed={collapsed} onClick={onNavigate} />
         ))}
       </VStack>
@@ -125,11 +169,14 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate, showCollapseT
         <HStack justify={collapsed ? 'center' : 'flex-end'} px={collapsed ? 0 : 1}>
           <IconButton
             aria-label={collapsed ? 'Développer le menu' : 'Réduire le menu'}
-            icon={collapsed ? <ChevronsRight size={18} /> : <ChevronsLeft size={18} />}
+            icon={collapsed ? <ChevronsLeft size={18} /> : <ChevronsRight size={18} />}
             size="sm"
             variant="ghost"
             color="whiteAlpha.700"
-            _hover={{ bg: 'whiteAlpha.150', color: 'white' }}
+            _hover={{
+              bg: 'whiteAlpha.150',
+              color: 'white',
+            }}
             onClick={onToggleCollapse}
           />
         </HStack>
@@ -149,7 +196,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, isMobileOpen, onM
         transition="width 0.2s ease"
         position="fixed"
         top={0}
-        left={0}
+        right={0}
         h="100vh"
         zIndex={20}
       >

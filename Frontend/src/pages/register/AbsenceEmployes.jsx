@@ -5,10 +5,11 @@ import { employeeRoles } from '../../data/employees';
 export default function AbsenceEmployes() {
   return (
     <AbsenceRolePage
-      personLabel="Employé"
+      personLabel="الالموظف"
       initialData={absencesEmployes}
       secondaryFieldKey="role"
-      secondaryFieldLabel="Rôle"
+      secondaryFieldLabel="الوظيفة"
+      searchFieldLabel="الموظفين"
       secondaryOptions={employeeRoles}
       personsEndpoint="/employ"
       personsMode="search"

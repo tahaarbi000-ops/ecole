@@ -99,7 +99,7 @@ export default function DataTable({
                   )}
                 </Th>
               ))}
-              {renderActions && <Th textAlign="right">Actions</Th>}
+              {renderActions && <Th textAlign="right">الإجراءات</Th>}
             </Tr>
           </Thead>
           <Tbody>
@@ -154,29 +154,41 @@ export default function DataTable({
           flexWrap="wrap"
           gap={2}
         >
-          <Text fontSize="xs" color="ink.500">
-            Affichage {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, sortedData.length)} sur {sortedData.length}
-          </Text>
+          <Text fontSize="xs" color="ink.500" dir="rtl">
+  عرض{' '}
+  <span dir="ltr">
+    {(currentPage - 1) * pageSize + 1}–
+    {Math.min(currentPage * pageSize, sortedData.length)}
+  </span>{' '}
+  من{' '}
+  <span dir="ltr">
+    {sortedData.length}
+  </span>
+</Text>
           <HStack spacing={1}>
-            <IconButton
-              aria-label="Page précédente"
-              icon={<ChevronLeft size={16} />}
-              size="xs"
-              variant="outline"
-              isDisabled={currentPage === 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            />
-            <Text fontSize="xs" color="ink.600" px={2}>
-              Page {currentPage} / {totalPages}
-            </Text>
+
             <IconButton
               aria-label="Page suivante"
               icon={<ChevronRight size={16} />}
               size="xs"
               variant="outline"
-              isDisabled={currentPage === totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              isDisabled={currentPage === 1}
+              onClick={() => setPage((p) => Math.min(totalPages, p - 1))}
             />
+          
+            <Text fontSize="xs" color="ink.600" px={2}>
+              صفحة {currentPage} / {totalPages}
+            </Text>
+          <IconButton
+              aria-label="Page précédente"
+              icon={<ChevronLeft size={16} />}
+              size="xs"
+              variant="outline"
+              isDisabled={currentPage === totalPages}
+              onClick={() => setPage((p) => Math.max(1, p + 1))}
+            />
+
+            
           </HStack>
         </Flex>
       )}

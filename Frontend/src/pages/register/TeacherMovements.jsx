@@ -9,8 +9,8 @@ import { teacherMovements as initialMovements, movementDirections } from '../../
 import { AxiosToken } from '../../api/Api';
 
 const SENS_COLORS = {
-  entrée: { bg: 'positive.50', color: 'positive.600', icon: LogIn },
-  sortie: { bg: 'warning.50', color: 'warning.500', icon: LogOut },
+  "دخول": { bg: 'positive.50', color: 'positive.600', icon: LogIn },
+  "خروج": { bg: 'warning.50', color: 'warning.500', icon: LogOut },
 };
 
 function formatDate(iso) {
@@ -27,6 +27,8 @@ export default function TeacherMovements() {
   const [toDelete, setToDelete] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+      const [isLoading, setIsLoading] = useState(false);
+
 
   const formModal = useDisclosure();
   const deleteDialog = useDisclosure();
@@ -47,32 +49,37 @@ export default function TeacherMovements() {
   useEffect(()=>{
     const dataFetch = async ()=> {
       try{
+        setIsLoading(true)
         const response = await AxiosToken.get("/scoring")
         setMovements(response.data.scoring)
       }catch{
         console.error("error")
+      }finally{
+        setIsLoading(false)
       }
     }
     dataFetch()
   },[isSaving])
 
   const handleSubmit = async (formData) => {
-    setIsSaving(true);
-    try{
-      await AxiosToken.post("/scoring",formData)
-    }catch{
+  setIsSaving(true);
 
-    }finally{
-        setIsSaving(false)
-        formModal.onClose()
-    }
-  };
+  try {
+    await AxiosToken.post("/scoring", formData);
+    formModal.onClose();
+  } catch {
+
+  } finally {
+    setIsSaving(false);
+    formModal.onClose();
+  }
+};
 
   const handleDelete = () => {
     setIsDeleting(true);
     setTimeout(() => {
       setMovements((prev) => prev.filter((m) => m.id !== toDelete.id));
-      toast({ title: 'Pointage supprimé', status: 'info', duration: 3000, isClosable: true });
+      toast({ title: 'تم حذف التسجيل', status: 'info', duration: 3000, isClosable: true });
       setIsDeleting(false);
       deleteDialog.onClose();
       setToDelete(null);
@@ -80,16 +87,16 @@ export default function TeacherMovements() {
   };
 
   const columns = [
-    { key: 'date', label: 'Date', sortable: true, render: (row) => formatDate(row.date) },
-    { key: 'time', label: 'Heure', sortable: true },
-    { key: 'name', label: 'Nom', sortable: true, render: (row) => row.scoringTeacher?.name },
-    { key: 'last_name', label: 'Prénom', sortable: true, render: (row) => row.scoringTeacher?.last_name},
+    { key: 'date', label: 'التاريخ', sortable: true, render: (row) => formatDate(row.date) },
+    { key: 'time', label: 'الوقت', sortable: true },
+    { key: 'name', label: 'الاسم', sortable: true, render: (row) => row.scoringTeacher?.name },
+    { key: 'last_name', label: 'اللقب', sortable: true, render: (row) => row.scoringTeacher?.last_name},
     {
       key: 'sense',
-      label: 'Sens',
+      label: 'الاتجاه',
       sortable: true,
       render: (row) => {
-        const c = SENS_COLORS[row.sense] || SENS_COLORS.entrée;
+        const c = SENS_COLORS[row.sense] || SENS_COLORS.دخول;
         return (
           <HStack spacing={1.5}>
             <c.icon size={13} color={`var(--chakra-colors-${c.color.replace('.', '-')})`} />
@@ -98,13 +105,15 @@ export default function TeacherMovements() {
         );
       },
     },
-    { key: 'noticed', label: 'Remarque', render: (row) => row.remarque || <Text color="ink.400">—</Text> },
+    { key: 'noticed', label: 'ملاحظة', render: (row) => row.remarque || <Text color="ink.400">—</Text> },
   ];
 
   return (
-    <Box>
+    <Box
+    dir='rtl'
+    >
       <Wrap spacing={3} mb={5} align="center">
-        <SearchBar value={search} onChange={setSearch} placeholder="Rechercher un maître, une remarque…" />
+        <SearchBar value={search} onChange={setSearch} placeholder="ابحث عن معلّم أو ملاحظة…" />
         <Select
           w={{ base: 'full', sm: '160px' }}
           size="sm"
@@ -113,35 +122,45 @@ export default function TeacherMovements() {
           borderColor="ink.200"
           value={sensFilter}
           onChange={(e) => setSensFilter(e.target.value)}
+           sx={{
+          textAlign: 'right',
+          paddingRight: '1rem',
+          paddingLeft: '2rem',
+          '& + div': {
+            insetInlineEnd: 'auto',
+            insetInlineStart: '0.5rem',
+          },
+        }}
         >
-          <option value="">Entrées et sorties</option>
+          <option value="">الدخول والخروج</option>
           {movementDirections.map((d) => (
             <option key={d} value={d}>{d}</option>
           ))}
         </Select>
         {(search || sensFilter) && (
           <Button size="sm" variant="ghost" onClick={() => { setSearch(''); setSensFilter(''); }}>
-            Réinitialiser
+            إعادة التعيين
           </Button>
         )}
         <HStack spacing={1.5} ml="auto" color="ink.400">
-          <Text fontSize="xs">{filtered.length} résultat(s)</Text>
+          <Text fontSize="xs">{filtered.length} نتيجة(نتائج)</Text>
         </HStack>
-        <Button leftIcon={<Plus size={17} />} onClick={openAdd}>Nouveau pointage</Button>
+        <Button leftIcon={<Plus size={17} />} onClick={openAdd}>تسجيل جديد</Button>
       </Wrap>
 
       <DataTable
         columns={columns}
         data={filtered}
         pageSize={8}
-        emptyMessage="Aucun pointage enregistré."
+        isLoading={isLoading}
+        emptyMessage="لا يوجد أي تسجيل حضور."
         renderActions={(row) => (
           <HStack spacing={1}>
-            <Tooltip label="Modifier" hasArrow>
-              <IconButton aria-label="Modifier" icon={<Pencil size={16} />} size="sm" variant="ghost" onClick={() => openEdit(row)} />
+            <Tooltip label="تعديل" hasArrow>
+              <IconButton aria-label="تعديل" icon={<Pencil size={16} />} size="sm" variant="ghost" onClick={() => openEdit(row)} />
             </Tooltip>
-            <Tooltip label="Supprimer" hasArrow>
-              <IconButton aria-label="Supprimer" icon={<Trash2 size={16} />} size="sm" variant="ghost" color="danger.500" _hover={{ bg: 'danger.50' }} onClick={() => askDelete(row)} />
+            <Tooltip label="حذف" hasArrow>
+              <IconButton aria-label="حذف" icon={<Trash2 size={16} />} size="sm" variant="ghost" color="danger.500" _hover={{ bg: 'danger.50' }} onClick={() => askDelete(row)} />
             </Tooltip>
           </HStack>
         )}
@@ -160,8 +179,8 @@ export default function TeacherMovements() {
         onClose={deleteDialog.onClose}
         onConfirm={handleDelete}
         isLoading={isDeleting}
-        title="Supprimer ce pointage ?"
-        message={toDelete ? `Voulez-vous vraiment supprimer ce pointage de ${toDelete.prenom} ${toDelete.nom} ?` : ''}
+        title="هل تريد حذف هذا التسجيل؟"
+        message={toDelete ? `هل تريد فعلاً حذف هذا التسجيل الخاص بـ ${toDelete.prenom} ${toDelete.nom} ؟` : ''}
       />
     </Box>
   );

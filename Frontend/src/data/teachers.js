@@ -4,19 +4,21 @@
 // ---------------------------------------------------------------------------
 
 export const subjects = [
-  'Mathématiques',
-  'Français',
-  'Arabe',
-  'Anglais',
-  'Sciences',
-  'Physique',
-  'Histoire-Géographie',
-  'Éducation Islamique',
+  'عربية',
+  'رياضيات',
+  'إيقاظ العلمي',
+  'تربية الإسلامية',
+  'تربية المدنية',
+  'مواد الاجتماعية (تاريخ وجغرافيا)',
+  'لفرنسية',
+  'إنجليزية',
+  'تربية البدنية',
+  'تربية والفنية',
   'Sport',
   'Informatique',
 ];
 
-export const teacherStatuses = ['actif', 'en congé', 'inactif'];
+export const teacherStatuses = ['نشط', 'في إجازة', 'غير نشط'];
 
 export const teachers = [
   {

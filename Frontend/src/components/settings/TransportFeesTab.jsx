@@ -82,69 +82,134 @@ export default function TransportFeesTab() {
   };
 
   return (
-    <Box bg="white" borderRadius="2xl" p={6} border="1px solid" borderColor="ink.200" boxShadow="card">
-      <HStack justify="space-between" mb={1}>
-        <Text fontFamily="heading" fontWeight="700" color="ink.900">Tarifs de transport scolaire</Text>
-        <Button size="sm" leftIcon={<Plus size={16} />} onClick={openAdd}>Ajouter une zone</Button>
-      </HStack>
-      <Text fontSize="sm" color="ink.500" mb={5}>Gérez les zones de transport et leur tarif mensuel.</Text>
+  <Box
+    dir="rtl"
+    bg="white"
+    borderRadius="2xl"
+    p={6}
+    border="1px solid"
+    borderColor="ink.200"
+    boxShadow="card"
+  >
+    <HStack justify="space-between" mb={1}>
+      <Text
+        fontFamily="heading"
+        fontWeight="700"
+        color="ink.900"
+      >
+        معاليم النقل المدرسي
+      </Text>
 
-      <TableContainer>
-        <Table size="sm" variant="simple">
-          <Thead>
+      <Button
+        size="sm"
+        rightIcon={<Plus size={16} />}
+        onClick={openAdd}
+      >
+        إضافة منطقة
+      </Button>
+    </HStack>
+
+    <Text fontSize="sm" color="ink.500" mb={6}>
+      قم بإدارة مناطق النقل ومعاليمها الشهرية.
+    </Text>
+
+    <TableContainer>
+      <Table size="sm" variant="simple">
+        <Thead>
+          <Tr>
+            <Th>المنطقة</Th>
+            <Th isNumeric>المعلوم الشهري</Th>
+            <Th isNumeric>المعلوم السنوي</Th>
+            <Th textAlign="left">الإجراءات</Th>
+          </Tr>
+        </Thead>
+
+        <Tbody>
+          {fees.length === 0 && (
             <Tr>
-              <Th>Zone</Th>
-              <Th isNumeric>Tarif mensuel</Th>
-              <Th textAlign="right">Actions</Th>
+              <Td colSpan={4}>
+                <HStack justify="center" py={8} color="ink.400">
+                  <Bus size={18} />
+                  <Text fontSize="sm">
+                    لم يتم تحديد أي منطقة للنقل.
+                  </Text>
+                </HStack>
+              </Td>
             </Tr>
-          </Thead>
-          <Tbody>
-            {fees.length === 0 && (
-              <Tr>
-                <Td colSpan={3}>
-                  <HStack justify="center" py={8} color="ink.400">
-                    <Bus size={18} />
-                    <Text fontSize="sm">Aucune zone de transport définie.</Text>
-                  </HStack>
-                </Td>
-              </Tr>
-            )}
-            {fees.map((fee) => (
-              <Tr key={fee.id} _hover={{ bg: 'ink.50' }}>
-                <Td fontWeight="500" color="ink.800">{fee.label}</Td>
-                <Td isNumeric fontWeight="600" color="ink.900">{fee.amount.toLocaleString('fr-FR')} DT</Td>
-                <Td>
-                  <HStack justify="flex-end" spacing={1}>
-                    <Tooltip label="Modifier" hasArrow>
-                      <IconButton aria-label="Modifier" icon={<Pencil size={15} />} size="sm" variant="ghost" onClick={() => openEdit(fee)} />
-                    </Tooltip>
-                    <Tooltip label="Supprimer" hasArrow>
-                      <IconButton aria-label="Supprimer" icon={<Trash2 size={15} />} size="sm" variant="ghost" color="danger.500" _hover={{ bg: 'danger.50' }} onClick={() => askDelete(fee)} />
-                    </Tooltip>
-                  </HStack>
-                </Td>
-              </Tr>
-            ))}
-          </Tbody>
-        </Table>
-      </TableContainer>
+          )}
 
-      <TransportFeeFormModal
-        isOpen={formModal.isOpen}
-        onClose={formModal.onClose}
-        onSubmit={handleSubmit}
-        fee={selected}
-        isSaving={isSaving}
-      />
+          {fees.map((fee) => (
+            <Tr key={fee.id} _hover={{ bg: 'ink.50' }}>
+              <Td fontWeight="500" color="ink.800">
+                {fee.label}
+              </Td>
 
-      <ConfirmDialog
-        isOpen={deleteDialog.isOpen}
-        onClose={deleteDialog.onClose}
-        onConfirm={handleDelete}
-        isLoading={isDeleting}
-        title="Supprimer cette zone ?"
-        message={toDelete ? `Voulez-vous vraiment supprimer la ${toDelete.zone} ?` : ''}
-      />
-    </Box>
-  );
+              <Td
+                isNumeric
+                fontWeight="600"
+                color="ink.900"
+              >
+                {fee.amount.toLocaleString('fr-FR')} د.ت
+              </Td>
+              <Td
+                isNumeric
+                fontWeight="600"
+                color="ink.900"
+              >
+                {fee.amount_yearly.toLocaleString('fr-FR')} د.ت
+              </Td>
+
+              <Td>
+                <HStack justify="flex-start" spacing={1}>
+                  <Tooltip label="تعديل" hasArrow>
+                    <IconButton
+                      aria-label="تعديل"
+                      icon={<Pencil size={15} />}
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => openEdit(fee)}
+                    />
+                  </Tooltip>
+
+                  <Tooltip label="حذف" hasArrow>
+                    <IconButton
+                      aria-label="حذف"
+                      icon={<Trash2 size={15} />}
+                      size="sm"
+                      variant="ghost"
+                      color="danger.500"
+                      _hover={{ bg: 'danger.50' }}
+                      onClick={() => askDelete(fee)}
+                    />
+                  </Tooltip>
+                </HStack>
+              </Td>
+            </Tr>
+          ))}
+        </Tbody>
+      </Table>
+    </TableContainer>
+
+    <TransportFeeFormModal
+      isOpen={formModal.isOpen}
+      onClose={formModal.onClose}
+      onSubmit={handleSubmit}
+      fee={selected}
+      isSaving={isSaving}
+    />
+
+    <ConfirmDialog
+      isOpen={deleteDialog.isOpen}
+      onClose={deleteDialog.onClose}
+      onConfirm={handleDelete}
+      isLoading={isDeleting}
+      title="حذف هذه المنطقة؟"
+      message={
+        toDelete
+          ? `هل أنت متأكد من حذف المنطقة ${toDelete.label}؟`
+          : ''
+      }
+    />
+  </Box>
+);
 }

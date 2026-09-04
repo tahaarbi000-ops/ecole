@@ -30,21 +30,21 @@ exports.getAllSubscription = async (req,res) => {
     }
 }
 
-exports.paySubscription = async (req,res) => {
-    try{
-        const {id} = req.params;
+exports.paySubscription = async (req, res) => {
+    try {
+        const { id } = req.params;
         const subscription = await Subscription.findByPk(id);
-        if(!subscription) {
-             return res.status(404).json({
-            message: "subscription not found.",
-        });
+        if (!subscription) {
+            return res.status(404).json({
+                message: "subscription not found.",
+            });
         }
-        subscription.update({status:"payé"})
+        await subscription.update({ status: "payé" });
         return res.json({
             message: "subscription payed with success.",
-        })
-    }catch{
-        console.error("Get Supervisors error:", error);
+        });
+    } catch (error) {
+        console.error("Pay subscription error:", error);
 
         return res.status(500).json({
             message: "Server error.",
