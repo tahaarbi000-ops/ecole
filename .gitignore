@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Electron
+desktop/dist/
+desktop/node_modules/
+
+# Archives
+*.zip
+
+# Environment
+.env
+.env.*
+
