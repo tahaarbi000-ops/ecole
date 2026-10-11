@@ -56,7 +56,6 @@ export default function Login() {
     setIsLoading(true);
     try {
       await login(email, password);
-      console.log(user)
       const redirectTo =
   user?.role === "مدير"
     ? "/dashboard"

@@ -7,7 +7,7 @@ export default function Teachers() {
       pageTitle="المعلمون"
       entityLabel="معلم"
       initialData={teachers}
-      roleFieldKey="matiere"
+      roleFieldKey="subject"
       roleFieldLabel="المواد"
       roleOptions={subjects}
       showStatus

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -24,6 +24,7 @@ import {
   Divider,
 } from '@chakra-ui/react';
 import { Wallet, CheckCircle2, Clock, CreditCard, History as HistoryIcon } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { paymentStatuses } from '../../data/payments';
 import { levels } from '../../data/school';
 import PaymentsSubNav from './PaymentsSubNav';
@@ -31,6 +32,8 @@ import DataTable from '../common/DataTable';
 import { AxiosToken } from '../../api/Api';
 import SearchBar from '../common/SearchBar';
 import PageHeader from '../common/PageHeader';
+
+const SUBSCRIPTIONS_KEY = ['subscriptions'];
 
 const STATUS_COLORS = {
   payé: { bg: 'positive.50', color: 'positive.600' },
@@ -51,6 +54,16 @@ const selectSx = {
   '& + div': { insetInlineEnd: 'auto', insetInlineStart: '0.5rem' },
 };
 
+const fetchSubscriptions = async () => {
+  const { data } = await AxiosToken.get('/subscription');
+  return data.subscriptions ?? [];
+};
+
+const studentName = (p) =>
+  `${p.student?.name ?? ''} ${p.student?.last_name ?? ''}`.trim();
+
+const studentId = (p) => p.student?.id ?? p.student_id;
+
 function formatDate(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('fr-FR');
@@ -64,7 +77,7 @@ function formatMonthLabel(monthKey) {
 
 export default function PaymentsEleves() {
   const toast = useToast();
-  const [payments, setPayments] = useState([]);
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState('');
@@ -74,39 +87,37 @@ export default function PaymentsEleves() {
 
   const [payTarget, setPayTarget] = useState(null);
   const [historyStudent, setHistoryStudent] = useState(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isPaying, setIsPaying] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
-  const formModal = useDisclosure();
   const payModal = useDisclosure();
   const historyModal = useDisclosure();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
-      try {
-        const response = await AxiosToken.get('/subscription');
-        setPayments(response.data.subscriptions);
-      } catch {
-        console.error('error');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, [isSaving, isPaying]);
+  // ---------- Query ----------
+  const { data, isLoading } = useQuery({
+    queryKey: SUBSCRIPTIONS_KEY,
+    queryFn: fetchSubscriptions,
+    staleTime: 5 * 60 * 1000,
+  });
+  const payments = data ?? [];
 
+  // ---------- Mutation ----------
+  const payMutation = useMutation({
+    mutationFn: (id) => AxiosToken.post(`/subscription/${id}/pay`),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: SUBSCRIPTIONS_KEY }),
+  });
+
+  // ---------- Derived data ----------
   const availableYears = useMemo(() => {
-    const set = new Set(payments.map((p) => p.createdAt.slice(0, 4)));
+    const set = new Set(payments.map((p) => (p.createdAt ?? '').slice(0, 4)).filter(Boolean));
     return Array.from(set).sort().reverse();
   }, [payments]);
 
   const availableMonths = useMemo(() => {
     const set = new Set(
       payments
-        .filter((p) => !yearFilter || p.createdAt.startsWith(yearFilter))
-        .map((p) => p.createdAt.slice(0, 7))
+        .filter((p) => !yearFilter || (p.createdAt ?? '').startsWith(yearFilter))
+        .map((p) => (p.createdAt ?? '').slice(0, 7))
+        .filter(Boolean)
     );
     return Array.from(set).sort().reverse();
   }, [payments, yearFilter]);
@@ -114,69 +125,79 @@ export default function PaymentsEleves() {
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return payments.filter((p) => {
-      const matchesSearch = !term || (p.student.name + ' ' + p.student.last_name).toLowerCase().includes(term);
-      const matchesLevel = !levelFilter || p.student.class === levelFilter;
-      const matchesYear = !yearFilter || p.createdAt.startsWith(yearFilter);
-      const matchesMonth = !monthFilter || p.createdAt.startsWith(monthFilter);
+      const created = p.createdAt ?? '';
+      const matchesSearch = !term || studentName(p).toLowerCase().includes(term);
+      const matchesLevel = !levelFilter || p.student?.class === levelFilter;
+      const matchesYear = !yearFilter || created.startsWith(yearFilter);
+      const matchesMonth = !monthFilter || created.startsWith(monthFilter);
       const matchesStatus = !statusFilter || p.status === statusFilter;
       return matchesSearch && matchesLevel && matchesYear && matchesMonth && matchesStatus;
     });
   }, [payments, search, levelFilter, yearFilter, monthFilter, statusFilter]);
 
   const currentMonthKey = new Date().toISOString().slice(0, 7);
+
   const totalEncaisseCeMois = useMemo(
     () =>
       payments
-        .filter((p) => p.createdAt.startsWith(currentMonthKey) && p.status !== 'en attente')
-        .reduce((sum, p) => sum + p.amount, 0),
+        .filter(
+          (p) =>
+            (p.createdAt ?? '').startsWith(currentMonthKey) &&
+            p.status !== 'en attente'
+        )
+        .reduce((sum, p) => sum + (p.amount ?? 0), 0),
     [payments, currentMonthKey]
   );
+
   const totalPayeFiltre = useMemo(
-    () => filtered.filter((p) => p.status === 'payé').reduce((sum, p) => sum + p.amount, 0),
+    () =>
+      filtered
+        .filter((p) => p.status === 'payé')
+        .reduce((sum, p) => sum + (p.amount ?? 0), 0),
     [filtered]
   );
+
   const totalRestantFiltre = useMemo(
-    () => filtered.filter((p) => p.status === 'en attente' || p.status === 'non payé').length,
+    () =>
+      filtered.filter((p) => p.status === 'en attente' || p.status === 'non payé')
+        .length,
     [filtered]
   );
 
   const historyRows = useMemo(() => {
     if (!historyStudent) return [];
+    const id = studentId(historyStudent);
     return payments
-      .filter((p) => p.eleve === historyStudent.eleve)
+      .filter((p) => studentId(p) === id)
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   }, [payments, historyStudent]);
 
-  const askPay = (p) => { setPayTarget(p); payModal.onOpen(); };
-  const openHistory = (p) => { setHistoryStudent(p); historyModal.onOpen(); };
+  // ---------- Handlers ----------
+  const askPay = (p) => {
+    setPayTarget(p);
+    payModal.onOpen();
+  };
 
-  const handleCreateSubmit = (formData) => {
-    setIsSaving(true);
-    setTimeout(() => {
-      const newPayment = { ...formData, id: Math.max(0, ...payments.map((p) => p.id)) + 1 };
-      setPayments((prev) => [newPayment, ...prev]);
-      toast({ title: 'تم تسجيل الدفع', status: 'success', duration: 3000, isClosable: true });
-      setIsSaving(false);
-      formModal.onClose();
-    }, 700);
+  const openHistory = (p) => {
+    setHistoryStudent(p);
+    historyModal.onOpen();
   };
 
   const handleConfirmPay = async () => {
     if (!payTarget) return;
-    setIsPaying(true);
+
     try {
-      await AxiosToken.post(`/subscription/${payTarget.id}/pay`);
-      setPayments((prev) => prev.map((p) => (p.id === payTarget.id ? { ...p, status: 'payé' } : p)));
+      await payMutation.mutateAsync(payTarget.id);
       toast({
         title: 'تم تأكيد الدفع',
-        description: `${payTarget.eleve} — ${payTarget?.amount?.toLocaleString('fr-FR')} د.ت`,
+        description: `${studentName(payTarget)} — ${payTarget.amount?.toLocaleString('fr-FR')} د.ت`,
         status: 'success',
         duration: 3000,
         isClosable: true,
       });
       payModal.onClose();
       setPayTarget(null);
-    } catch (error) {
+    } catch {
       toast({
         title: 'فشل تأكيد الدفع',
         description: 'حدث خطأ أثناء تسجيل الدفع، حاول مجددا.',
@@ -184,8 +205,6 @@ export default function PaymentsEleves() {
         duration: 3000,
         isClosable: true,
       });
-    } finally {
-      setIsPaying(false);
     }
   };
 
@@ -197,19 +216,44 @@ export default function PaymentsEleves() {
     setStatusFilter('');
   };
 
+  // ---------- Columns ----------
   const columns = [
-    { key: 'id', label: 'المعرّف', sortable: true,render:(row) => row.student.unique_id || "--" },
-    { key: 'eleve', label: 'الطالب', sortable: true, render: (row) => row.student.name + ' ' + row.student.last_name },
+    {
+      key: 'id',
+      label: 'المعرّف',
+      sortable: true,
+      render: (row) => row.student?.unique_id || '--',
+    },
+    {
+      key: 'eleve',
+      label: 'الطالب',
+      sortable: true,
+      render: (row) => studentName(row),
+    },
     {
       key: 'class',
       label: 'المستوى',
       sortable: true,
       render: (row) => (
-        <Badge bg="ink.100" color="ink.700" borderRadius="full" px={2.5}>{row.student.class}</Badge>
+        <Badge bg="ink.100" color="ink.700" borderRadius="full" px={2.5}>
+          {row.student?.class}
+        </Badge>
       ),
     },
-    { key: 'montant', label: 'المبلغ', sortable: true, isNumeric: true, render: (row) => `${row.amount?.toLocaleString('fr-FR')} د.ت` },
-    { key: 'datePaiement', label: 'التاريخ', sortable: true, render: (row) => formatDate(row.createdAt) },
+    { key: 'payment_type', label: 'نوع الدفع', sortable: true },
+    {
+      key: 'montant',
+      label: 'المبلغ',
+      sortable: true,
+      isNumeric: true,
+      render: (row) => `${row.amount?.toLocaleString('fr-FR')} د.ت`,
+    },
+    {
+      key: 'datePaiement',
+      label: 'التاريخ',
+      sortable: true,
+      render: (row) => formatDate(row.createdAt),
+    },
     {
       key: 'status',
       label: 'الحالة',
@@ -238,7 +282,7 @@ export default function PaymentsEleves() {
             <Wallet size={18} />
           </HStack>
           <Text fontFamily="heading" fontSize="2xl" fontWeight="700">
-            {totalEncaisseCeMois?.toLocaleString('fr-FR')} د.ت
+            {totalEncaisseCeMois.toLocaleString('fr-FR')} د.ت
           </Text>
           <Text fontSize="xs" color="whiteAlpha.700" mt={1}>{formatMonthLabel(currentMonthKey)}</Text>
         </Box>
@@ -249,7 +293,7 @@ export default function PaymentsEleves() {
             <Icon as={CheckCircle2} boxSize={4.5} color="positive.500" />
           </HStack>
           <Text fontFamily="heading" fontSize="2xl" fontWeight="700" color="ink.900">
-            {totalPayeFiltre?.toLocaleString('fr-FR')} د.ت
+            {totalPayeFiltre.toLocaleString('fr-FR')} د.ت
           </Text>
           <Text fontSize="xs" color="ink.400" mt={1}>ضمن التحديد الحالي</Text>
         </Box>
@@ -356,7 +400,7 @@ export default function PaymentsEleves() {
             <Tooltip label="الدفع" hasArrow>
               <IconButton
                 aria-label="الدفع"
-                disabled={row.status === 'payé'}
+                isDisabled={row.status === 'payé'}
                 icon={<Wallet size={16} />}
                 size="sm"
                 variant="ghost"
@@ -366,7 +410,13 @@ export default function PaymentsEleves() {
               />
             </Tooltip>
             <Tooltip label="السجل" hasArrow>
-              <IconButton aria-label="السجل" icon={<HistoryIcon size={16} />} size="sm" variant="ghost" onClick={() => openHistory(row)} />
+              <IconButton
+                aria-label="السجل"
+                icon={<HistoryIcon size={16} />}
+                size="sm"
+                variant="ghost"
+                onClick={() => openHistory(row)}
+              />
             </Tooltip>
           </HStack>
         )}
@@ -380,17 +430,25 @@ export default function PaymentsEleves() {
           <ModalBody>
             <Text fontSize="sm" color="ink.600">
               هل تريد تأكيد الدفع لـ{' '}
-              <Text as="span" fontWeight="700" color="ink.900">{payTarget?.eleve}</Text>{' '}؟
+              <Text as="span" fontWeight="700" color="ink.900">
+                {payTarget ? studentName(payTarget) : ''}
+              </Text>{' '}؟
             </Text>
             {payTarget && (
               <Text fontSize="xs" color="ink.400" mt={2}>
-                {payTarget.amount?.toLocaleString('fr-FR')} د.ت — {payTarget.niveau}
+                {payTarget.amount?.toLocaleString('fr-FR')} د.ت — {payTarget.student?.class}
               </Text>
             )}
           </ModalBody>
           <ModalFooter>
             <Button variant="ghost" mr={3} onClick={payModal.onClose}>إلغاء</Button>
-            <Button colorScheme="green" onClick={handleConfirmPay} isLoading={isPaying}>تأكيد</Button>
+            <Button
+              colorScheme="green"
+              onClick={handleConfirmPay}
+              isLoading={payMutation.isPending}
+            >
+              تأكيد
+            </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -402,7 +460,7 @@ export default function PaymentsEleves() {
             سجل المدفوعات
             {historyStudent && (
               <Text fontSize="sm" fontWeight="400" color="ink.500" mt={1}>
-                {historyStudent.eleve} — {historyStudent.niveau}
+                {studentName(historyStudent)} — {historyStudent.student?.class}
               </Text>
             )}
           </ModalHeader>
@@ -417,7 +475,9 @@ export default function PaymentsEleves() {
                   return (
                     <HStack key={p.id} justify="space-between" py={3}>
                       <Box>
-                        <Text fontSize="sm" fontWeight="600" color="ink.800">{p.amount?.toLocaleString('fr-FR')} د.ت</Text>
+                        <Text fontSize="sm" fontWeight="600" color="ink.800">
+                          {p.amount?.toLocaleString('fr-FR')} د.ت
+                        </Text>
                         <Text fontSize="xs" color="ink.400">{formatDate(p.createdAt)}</Text>
                       </Box>
                       <Badge bg={c.bg} color={c.color} borderRadius="full" px={2.5}>

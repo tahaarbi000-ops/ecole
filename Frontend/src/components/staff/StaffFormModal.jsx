@@ -86,7 +86,6 @@ export default function StaffFormModal({
   cinError
 }) {
   const isEditMode = Boolean(person);
-  console.log(person)
 
   const formik = useFormik({
     initialValues: EMPTY_FORM,

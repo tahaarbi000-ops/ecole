@@ -50,7 +50,6 @@ export default function StaffViewModal({
   roleFieldLabel,
 }) {
   if (!person) return null;
-  console.log(person)
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="md" isCentered>

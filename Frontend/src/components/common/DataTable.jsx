@@ -20,7 +20,7 @@ import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, Inbo
 /**
  * Tableau de données réutilisable — tri, pagination, état vide et loading.
  *
- * @param {Array} columns   [{ key, label, sortable, isNumeric, render(row) }]
+ * @param {Array} columns   [{ key, label, sortable, align ('start'|'center'|'end'), render(row) }]
  * @param {Array} data      Données déjà filtrées par le parent (recherche / filtres)
  * @param {Function} [renderActions] (row) => ReactNode — colonne Actions
  * @param {number} [pageSize=8]
@@ -78,14 +78,20 @@ export default function DataTable({
           <Thead>
             <Tr>
               {columns.map((col) => (
-                <Th key={col.key} isNumeric={col.isNumeric} whiteSpace="nowrap">
+                <Th key={col.key} textAlign={col.align || 'start'} whiteSpace="nowrap">
                   {col.sortable ? (
                     <HStack
                       spacing={1}
                       cursor="pointer"
                       onClick={() => handleSort(col.key)}
                       userSelect="none"
-                      justify={col.isNumeric ? 'flex-end' : 'flex-start'}
+                      justify={
+                        col.align === 'end'
+                          ? 'flex-end'
+                          : col.align === 'center'
+                          ? 'center'
+                          : 'flex-start'
+                      }
                     >
                       <Text>{col.label}</Text>
                       <Icon
@@ -128,13 +134,13 @@ export default function DataTable({
               paginated.map((row, idx) => (
                 <Tr key={row.id ?? idx} _hover={{ bg: 'ink.50' }} transition="background 0.12s ease">
                   {columns.map((col) => (
-                    <Td key={col.key} isNumeric={col.isNumeric} whiteSpace="nowrap">
+                    <Td key={col.key} textAlign={col.align || 'start'} whiteSpace="nowrap">
                       {col.render ? col.render(row) : row[col.key]}
                     </Td>
                   ))}
                   {renderActions && (
                     <Td>
-                      <Flex justify="flex-end">{renderActions(row)}</Flex>
+                      <Flex justify="flex-start">{renderActions(row)}</Flex>
                     </Td>
                   )}
                 </Tr>
@@ -155,40 +161,38 @@ export default function DataTable({
           gap={2}
         >
           <Text fontSize="xs" color="ink.500" dir="rtl">
-  عرض{' '}
-  <span dir="ltr">
-    {(currentPage - 1) * pageSize + 1}–
-    {Math.min(currentPage * pageSize, sortedData.length)}
-  </span>{' '}
-  من{' '}
-  <span dir="ltr">
-    {sortedData.length}
-  </span>
-</Text>
+            عرض{' '}
+            <span dir="ltr">
+              {(currentPage - 1) * pageSize + 1}–
+              {Math.min(currentPage * pageSize, sortedData.length)}
+            </span>{' '}
+            من{' '}
+            <span dir="ltr">
+              {sortedData.length}
+            </span>
+          </Text>
           <HStack spacing={1}>
-
             <IconButton
               aria-label="Page suivante"
               icon={<ChevronRight size={16} />}
               size="xs"
               variant="outline"
               isDisabled={currentPage === 1}
-              onClick={() => setPage((p) => Math.min(totalPages, p - 1))}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
             />
-          
+
             <Text fontSize="xs" color="ink.600" px={2}>
               صفحة {currentPage} / {totalPages}
             </Text>
-          <IconButton
+
+            <IconButton
               aria-label="Page précédente"
               icon={<ChevronLeft size={16} />}
               size="xs"
               variant="outline"
               isDisabled={currentPage === totalPages}
-              onClick={() => setPage((p) => Math.max(1, p + 1))}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             />
-
-            
           </HStack>
         </Flex>
       )}

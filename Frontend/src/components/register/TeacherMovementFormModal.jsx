@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 import {
@@ -11,6 +11,7 @@ import {
   Button,
   Textarea,
 } from '@chakra-ui/react';
+import { useQuery } from '@tanstack/react-query';
 import FormModal from '../common/FormModal';
 import { AxiosToken } from '../../api/Api';
 
@@ -44,9 +45,36 @@ const validationSchema = Yup.object({
   noticed: Yup.string().max(255, 'يجب ألا يتجاوز 255 حرفًا.'),
 });
 
+// Same key as StaffPageBase, so the teachers list is shared from cache
+const fetchTeachers = async () => {
+  const { data } = await AxiosToken.get('/teacher');
+  return data.teachers ?? [];
+};
+
+function generateTimeSlots(startHour = 8, endHour = 18, stepMinutes = 30) {
+  const slots = [];
+  for (let h = startHour; h <= endHour; h++) {
+    for (let m = 0; m < 60; m += stepMinutes) {
+      if (h === endHour && m > 0) break;
+      slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
+  }
+  return slots;
+}
+
+const selectSx = {
+  textAlign: 'right',
+  paddingRight: '1rem',
+  paddingLeft: '2rem',
+  '& + div': {
+    insetInlineEnd: 'auto',
+    insetInlineStart: '0.5rem',
+  },
+};
+
 /**
  * نافذة نموذج لتسجيل حضور/انصراف المعلّمين (دخول أو خروج).
- * تتوافق الحقول مع ما ينتظره المتحكم createScoring.
+ * onSubmit should return false on failure to keep the form values.
  */
 export default function TeacherScoringFormModal({
   isOpen,
@@ -56,20 +84,14 @@ export default function TeacherScoringFormModal({
   isSaving = false,
 }) {
   const isEditMode = Boolean(scoring);
-  const [teachers,setTeachers] = useState([])
 
-    useEffect(() => {
-    const loadPeople = async () => {
-      try {
-        const data = await AxiosToken.get("/teacher");
-  
-        setTeachers(data.data.teachers);
-      } catch (error) {
-        console.error('Error loading personnel:', error);
-    };
-    }
-    loadPeople();
-  }, [isSaving]);
+  const { data: teachersData } = useQuery({
+    queryKey: ['teachers'],
+    queryFn: fetchTeachers,
+    staleTime: 5 * 60 * 1000,
+    enabled: isOpen,
+  });
+  const teachers = teachersData ?? [];
 
   const initialValues = useMemo(
     () => ({
@@ -77,6 +99,8 @@ export default function TeacherScoringFormModal({
       ...(scoring
         ? {
             ...scoring,
+            teacher_id: scoring.teacher_id ?? scoring.scoringTeacher?.id ?? '',
+            noticed: scoring.noticed ?? '',
             justification:
               scoring.justification === true || scoring.justification === false
                 ? String(scoring.justification)
@@ -87,37 +111,20 @@ export default function TeacherScoringFormModal({
     [scoring]
   );
 
+  const timeSlots = useMemo(() => generateTimeSlots(8, 18, 30), []);
 
-const handleSubmit = async (values, { setSubmitting, resetForm }) => {
-  try {
-    await onSubmit({
-      ...values,
-      teacher_id: Number(values.teacher_id),
-      justification: values.justification === 'true',
-    });
-
-    resetForm();
-  } finally {
-    setSubmitting(false);
-  }
-};
-
-
-
-
-  function generateTimeSlots(startHour = 8, endHour = 18, stepMinutes = 30) {
-  const slots = [];
-  for (let h = startHour; h <= endHour; h++) {
-    for (let m = 0; m < 60; m += stepMinutes) {
-      if (h === endHour && m > 0) break; // stop exactly at 18:00
-      const hh = String(h).padStart(2, '0');
-      const mm = String(m).padStart(2, '0');
-      slots.push(`${hh}:${mm}`);
+  const handleSubmit = async (values, { setSubmitting, resetForm }) => {
+    try {
+      const ok = await onSubmit({
+        ...values,
+        teacher_id: Number(values.teacher_id),
+        justification: values.justification === 'true',
+      });
+      if (ok !== false) resetForm();
+    } finally {
+      setSubmitting(false);
     }
-  }
-  return slots;
-}
-const timeSlots = useMemo(() => generateTimeSlots(8, 18, 30), []);
+  };
 
   return (
     <Formik
@@ -141,7 +148,7 @@ const timeSlots = useMemo(() => generateTimeSlots(8, 18, 30), []);
           }
           size="lg"
         >
-          <Form noValidate dir='rtl'>
+          <Form noValidate dir="rtl">
             <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
               <FormControl isInvalid={Boolean(touched.date && errors.date)} isRequired>
                 <FormLabel fontSize="sm">التاريخ</FormLabel>
@@ -156,29 +163,21 @@ const timeSlots = useMemo(() => generateTimeSlots(8, 18, 30), []);
               </FormControl>
 
               <FormControl isInvalid={Boolean(touched.time && errors.time)} isRequired>
-  <FormLabel fontSize="sm">الوقت</FormLabel>
-  <Select
-    name="time"
-    placeholder="اختر الوقت"
-    value={values.time}
-    onChange={handleChange}
-    onBlur={handleBlur}
-     sx={{
-          textAlign: 'right',
-          paddingRight: '1rem',
-          paddingLeft: '2rem',
-          '& + div': {
-            insetInlineEnd: 'auto',
-            insetInlineStart: '0.5rem',
-          },
-        }}
-  >
-    {timeSlots.map((t) => (
-      <option key={t} value={t}>{t}</option>
-    ))}
-  </Select>
-  <FormErrorMessage>{errors.time}</FormErrorMessage>
-</FormControl>
+                <FormLabel fontSize="sm">الوقت</FormLabel>
+                <Select
+                  name="time"
+                  placeholder="اختر الوقت"
+                  value={values.time}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  sx={selectSx}
+                >
+                  {timeSlots.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </Select>
+                <FormErrorMessage>{errors.time}</FormErrorMessage>
+              </FormControl>
 
               <FormControl isInvalid={Boolean(touched.teacher_id && errors.teacher_id)} isRequired>
                 <FormLabel fontSize="sm">المعلّم</FormLabel>
@@ -188,15 +187,7 @@ const timeSlots = useMemo(() => generateTimeSlots(8, 18, 30), []);
                   value={values.teacher_id}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                   sx={{
-          textAlign: 'right',
-          paddingRight: '1rem',
-          paddingLeft: '2rem',
-          '& + div': {
-            insetInlineEnd: 'auto',
-            insetInlineStart: '0.5rem',
-          },
-        }}
+                  sx={selectSx}
                 >
                   {teachers.map((t) => (
                     <option key={t.id} value={t.id}>
@@ -215,15 +206,7 @@ const timeSlots = useMemo(() => generateTimeSlots(8, 18, 30), []);
                   value={values.sense}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                   sx={{
-          textAlign: 'right',
-          paddingRight: '1rem',
-          paddingLeft: '2rem',
-          '& + div': {
-            insetInlineEnd: 'auto',
-            insetInlineStart: '0.5rem',
-          },
-        }}
+                  sx={selectSx}
                 >
                   {SENSE_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
@@ -244,15 +227,7 @@ const timeSlots = useMemo(() => generateTimeSlots(8, 18, 30), []);
                   value={values.justification}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                   sx={{
-          textAlign: 'right',
-          paddingRight: '1rem',
-          paddingLeft: '2rem',
-          '& + div': {
-            insetInlineEnd: 'auto',
-            insetInlineStart: '0.5rem',
-          },
-        }}
+                  sx={selectSx}
                 >
                   <option value="true">مُبرَّر</option>
                   <option value="false">غير مُبرَّر</option>

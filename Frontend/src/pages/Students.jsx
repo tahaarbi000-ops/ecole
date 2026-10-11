@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Box,
   Button,
@@ -21,52 +21,40 @@ import {
   ModalFooter,
   FormControl,
   FormLabel,
-  FormErrorMessage,
-  Input,
-  Alert,
-  AlertIcon,
 } from '@chakra-ui/react';
-import { Plus, Eye, Pencil, Trash2, Download, Users, RefreshCcw, FileText, FileSpreadsheet, Gift, CheckCircle2, XCircle, UserPlus } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, Eye, Pencil, Trash2, Download, Users, RefreshCcw, FileText, FileSpreadsheet } from 'lucide-react';
 import PageHeader from '../components/common/PageHeader';
 import SearchBar from '../components/common/SearchBar';
 import DataTable from '../components/common/DataTable';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 import StudentFormModal from '../components/students/StudentFormModal';
 import StudentViewModal from '../components/students/StudentViewModal';
-import { students as initialStudents } from '../data/students';
 import { levels } from '../data/school';
 import { AxiosToken } from '../api/Api';
 import ReenrollModal from '../components/students/ReenrollModal';
 
+const EMPTY = [];
 
 function formatDate(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('fr-FR');
 }
 
-// عدد الإخوة المسموح بهم في العروض: 3 و 4 فقط
-function getOfferMessage(count) {
-  const num = Number(count);
-  if (!num) return null;
-  if (num === 3) {
-    return { status: 'success', text: 'الطفل الثالث يستفيد من تخفيض 50% على معلوم التسجيل.', promotion: 'discount_50' };
-  }
-  if (num === 4) {
-    return { status: 'success', text: 'الطفل الرابع يستفيد من تسجيل مجاني بالكامل.', promotion: 'free' };
-  }
-  return { status: 'info', text: 'لا يوجد عرض خاص متاح حاليا لهذا العدد من الإخوة.', promotion: null };
-}
+// ---- API functions ----
+const fetchStudents = async () => {
+  const { data } = await AxiosToken.get('/student');
+  return data.students ?? [];
+};
 
-// تحويل رمز العرض إلى نص واضح للمستخدم داخل نموذج التلميذ
-function getPromotionLabel(promotion) {
-  if (promotion === 'discount_50') return 'خصم 50% على معلوم التسجيل';
-  if (promotion === 'free') return 'تسجيل مجاني بالكامل';
-  return null;
-}
+const fetchAcademicYear = async () => {
+  const { data } = await AxiosToken.get('/school-info');
+  return data?.schoolInfo?.[0]?.academic_year ?? '';
+};
 
 export default function Students() {
   const toast = useToast();
-  const [students, setStudents] = useState([]);
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
   const [levelFilter, setLevelFilter] = useState('');
@@ -80,14 +68,6 @@ export default function Students() {
   const [exportLevel, setExportLevel] = useState('');
   const [uniqueIsError, setUniqueIsError] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [yearAcademy,setYearAcademy] = useState("")
-
-  
-
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isReenrolling, setIsReenrolling] = useState(false);
 
   const formModal = useDisclosure();
   const viewModal = useDisclosure();
@@ -95,54 +75,54 @@ export default function Students() {
   const reenrollModal = useDisclosure();
   const exportModal = useDisclosure();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true)
-        const response = await AxiosToken.get("/student");
-        setStudents(response.data.students)
-      } catch {
-        console.error("error")
-      }
-      finally{
-        setIsLoading(false)
-      }
-    }
-    fetchData()
-  }, [isSaving, isDeleting, isReenrolling])
+  // ---- Queries ----
+  const { data: studentsData, isLoading } = useQuery({
+    queryKey: ['students'],
+    queryFn: fetchStudents,
+    staleTime: 5 * 60 * 1000,
+  });
+  const students = studentsData ?? EMPTY;
+
+  const { data: yearAcademy = '' } = useQuery({
+    queryKey: ['school-info', 'academic-year'],
+    queryFn: fetchAcademicYear,
+    staleTime: 30 * 60 * 1000,
+  });
+
+  // ---- Mutations ----
+  const saveMutation = useMutation({
+    mutationFn: ({ id, payload }) =>
+      id ? AxiosToken.put(`/student/${id}`, payload) : AxiosToken.post('/student', payload),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['students'] }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => AxiosToken.delete(`/student/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['students'] }),
+  });
+
+  const reenrollMutation = useMutation({
+    mutationFn: ({ id, status }) => AxiosToken.post(`/student/${id}/reenroll`, { status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['students'] }),
+  });
+
+  // React Query v5: isPending. On v4 use isLoading instead.
+  const isSaving = saveMutation.isPending;
+  const isDeleting = deleteMutation.isPending;
+  const isReenrolling = reenrollMutation.isPending;
 
   const filteredStudents = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return students.filter((s) => {
-      const matchesSearch =
-        !term ||
-        `${s.name} ${s.last_name} ${s.address}`.toLowerCase().includes(term);
-      const matchesLevel = !levelFilter || s.class === levelFilter;
-      const matchesGender = !genderFilter || s.gender === genderFilter;
-      return matchesSearch && matchesLevel && matchesGender;
-    })
+    return students
+      .filter((s) => {
+        const matchesSearch =
+          !term || `${s.name} ${s.last_name} ${s.address}`.toLowerCase().includes(term);
+        const matchesLevel = !levelFilter || s.class === levelFilter;
+        const matchesGender = !genderFilter || s.gender === genderFilter;
+        return matchesSearch && matchesLevel && matchesGender;
+      })
       .map((p, idx) => ({ ...p, displayNumber: idx + 1 }));
-
   }, [students, search, levelFilter, genderFilter]);
-
-
-   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true)
-        const response = await AxiosToken.get("/school-info");
-         if (response.data?.schoolInfo) {
-            setYearAcademy(response.data.schoolInfo?.[0]?.academic_year);
-        }
-      } catch {
-        console.error("error")
-      }
-      finally{
-        setIsLoading(false)
-      }
-    }
-    fetchData()
-  }, [])
 
   const openAddModal = () => {
     setSelectedStudent(null);
@@ -170,66 +150,43 @@ export default function Students() {
     reenrollModal.onOpen();
   };
 
-
   const handleSubmit = async (formData, { resetForm }) => {
-  setIsSaving(true);
-  setUniqueIsError(false);
+    setUniqueIsError(false);
+    const isEdit = !!selectedStudent;
 
-  const payload = formData;
-
-  try {
-    let savedStudent = null;
-
-    if (selectedStudent) {
-      await AxiosToken.put(`/student/${selectedStudent.id}`, payload);
+    try {
+      await saveMutation.mutateAsync({ id: selectedStudent?.id, payload: formData });
       toast({
-        title: 'تم تعديل التلميذ بنجاح',
+        title: isEdit ? 'تم تعديل التلميذ بنجاح' : 'تم إضافة التلميذ بنجاح',
         status: 'success',
         duration: 3000,
         isClosable: true,
       });
-    } else {
-      const response = await AxiosToken.post('/student', payload);
-      savedStudent = response?.data?.student || response?.data || null;
+      resetForm();
+      formModal.onClose();
+      setSelectedStudent(null);
+    } catch (error) {
+      if (error.response?.status) {
+        setUniqueIsError(true);
+      }
       toast({
-        title: 'تم إضافة التلميذ بنجاح',
-        status: 'success',
+        title: 'حدث خطأ أثناء حفظ بيانات التلميذ',
+        status: 'error',
         duration: 3000,
         isClosable: true,
       });
     }
-
-    resetForm();
-    formModal.onClose();
-    setSelectedStudent(null);
-
-  } catch (error) {
-    if (error.response?.status) {
-      setUniqueIsError(true);
-    }
-    toast({
-      title: 'حدث خطأ أثناء حفظ بيانات التلميذ',
-      status: 'error',
-      duration: 3000,
-      isClosable: true,
-    });
-
-  } finally {
-    setIsSaving(false);
-  }
-};
+  };
 
   const handleDelete = async () => {
-    setIsDeleting(true);
     try {
-      await AxiosToken.delete(`/student/${studentToDelete.id}`)
+      await deleteMutation.mutateAsync(studentToDelete.id);
       toast({
         title: 'تم حذف التلميذ بنجاح',
         status: 'success',
         duration: 3000,
         isClosable: true,
       });
-
     } catch {
       toast({
         title: 'حدث خطأ أثناء حذف التلميذ',
@@ -238,7 +195,6 @@ export default function Students() {
         isClosable: true,
       });
     } finally {
-      setIsDeleting(false);
       deleteDialog.onClose();
       setStudentToDelete(null);
     }
@@ -246,12 +202,8 @@ export default function Students() {
 
   const handleReenroll = async () => {
     if (!reenrollStatus) return;
-    setIsReenrolling(true);
     try {
-      // Adapte ce endpoint à celui de ton backend si nécessaire
-      await AxiosToken.post(`/student/${studentToReenroll.id}/reenroll`, {
-        status: reenrollStatus,
-      });
+      await reenrollMutation.mutateAsync({ id: studentToReenroll.id, status: reenrollStatus });
       toast({
         title:
           reenrollStatus === 'ناجح'
@@ -269,76 +221,56 @@ export default function Students() {
         isClosable: true,
       });
     } finally {
-      setIsReenrolling(false);
       reenrollModal.onClose();
       setStudentToReenroll(null);
       setReenrollStatus('');
     }
   };
 
-  const downloadBlob = (blob, filename) => {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+  const handleExport = async (format) => {
+    try {
+      setIsExporting(true);
+
+      const response = await AxiosToken.get('/download/students', {
+        params: { format, level: exportLevel },
+        responseType: 'blob',
+      });
+
+      const blob = new Blob([response.data], {
+        type:
+          format === 'pdf'
+            ? 'application/pdf'
+            : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `students${exportLevel ? `-${exportLevel}` : ''}.${format === 'pdf' ? 'pdf' : 'xlsx'}`;
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      exportModal.onClose();
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: 'خطأ',
+        description: 'حدث خطأ أثناء تحميل بيانات التلاميذ',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
- const handleExport = async (format) => {
-  try {
-    setIsExporting(true);
-
-    const response = await AxiosToken.get("/download/students", {
-      params: {
-        format,
-        level: exportLevel,
-      },
-      responseType: "blob",
-    });
-
-    const blob = new Blob([response.data], {
-      type:
-        format === "pdf"
-          ? "application/pdf"
-          : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-
-    const url = window.URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `students${exportLevel ? `-${exportLevel}` : ""}.${format === "pdf" ? "pdf" : "xlsx"}`;
-
-    document.body.appendChild(link);
-    link.click();
-
-    link.remove();
-    window.URL.revokeObjectURL(url);
-
-    exportModal.onClose();
-  } catch (error) {
-    console.error("Export error:", error);
-
-    toast({
-      title: "خطأ",
-      description: "حدث خطأ أثناء تحميل بيانات التلاميذ",
-      status: "error",
-      duration: 3000,
-      isClosable: true,
-    });
-  } finally {
-    setIsExporting(false);
-  }
-};
-
-
-
   const columns = [
-    { ket: "displayNumber", label: '#', sortable: false, render: (row) => row.displayNumber },
-    { key: 'unique_id', label: 'المعرف الوحيد', sortable: true, render: (row) => row?.unique_id || "-" },
+    { key: 'displayNumber', label: '#', sortable: false, render: (row) => row.displayNumber },
+    { key: 'unique_id', label: 'المعرف الوحيد', sortable: true, render: (row) => row?.unique_id || '-' },
     { key: 'name', label: 'الاسم', sortable: true },
     { key: 'last_name', label: 'اللقب', sortable: true },
     {
@@ -370,18 +302,27 @@ export default function Students() {
     { key: 'address', label: 'العنوان' },
   ];
 
+  const selectSx = {
+    textAlign: 'right',
+    paddingRight: '1rem',
+    paddingLeft: '2rem',
+    '& + div': {
+      insetInlineEnd: 'auto',
+      insetInlineStart: '0.5rem',
+    },
+  };
 
   return (
-    <Box dir='rtl' >
+    <Box dir="rtl">
       <PageHeader
         title="التلاميذ"
         subtitle={
           <>
             <span dir="ltr">{students.length}</span>
             {' '}
-           الطلاب المسجلين
+            الطلاب المسجلين
             {' '}
-            <span dir="ltr">{yearAcademy || "-"}</span>
+            <span dir="ltr">{yearAcademy || '-'}</span>
           </>
         }
         actions={
@@ -403,7 +344,7 @@ export default function Students() {
         }
       />
 
-      <Wrap spacing={3} mb={5} align="center" dir='rtl'>
+      <Wrap spacing={3} mb={5} align="center" dir="rtl">
         <SearchBar value={search} onChange={setSearch} placeholder="ابحث بالاسم، أو اللقب، أو الموقع..." />
 
         <Select
@@ -412,18 +353,10 @@ export default function Students() {
           borderRadius="lg"
           bg="white"
           borderColor="ink.200"
-          dir='rtl'
+          dir="rtl"
           value={levelFilter}
           onChange={(e) => setLevelFilter(e.target.value)}
-          sx={{
-            textAlign: 'right',
-            paddingRight: '1rem',
-            paddingLeft: '2rem',
-            '& + div': {
-              insetInlineEnd: 'auto',
-              insetInlineStart: '0.5rem',
-            },
-          }}
+          sx={selectSx}
         >
           <option value="">جميع الاقسام </option>
           {levels.map((lvl) => (
@@ -432,7 +365,7 @@ export default function Students() {
         </Select>
 
         <Select
-          dir='rtl'
+          dir="rtl"
           w={{ base: 'full', sm: '190px' }}
           size="sm"
           borderRadius="lg"
@@ -440,15 +373,7 @@ export default function Students() {
           borderColor="ink.200"
           value={genderFilter}
           onChange={(e) => setGenderFilter(e.target.value)}
-          sx={{
-            textAlign: 'right',
-            paddingRight: '1rem',
-            paddingLeft: '2rem',
-            '& + div': {
-              insetInlineEnd: 'auto',
-              insetInlineStart: '0.5rem',
-            },
-          }}
+          sx={selectSx}
         >
           <option value="">كل الأجناس</option>
           <option value="ولد">ولد</option>
@@ -514,15 +439,12 @@ export default function Students() {
 
       <StudentFormModal
         isOpen={formModal.isOpen}
-        onClose={() => {
-          formModal.onClose();
-        }}
+        onClose={formModal.onClose}
         onSubmit={handleSubmit}
         student={selectedStudent}
         isSaving={isSaving}
         uniqueIsError={uniqueIsError}
         setUniqueIsError={setUniqueIsError}
-      
       />
 
       <StudentViewModal
@@ -558,16 +480,7 @@ export default function Students() {
                   dir="rtl"
                   value={exportLevel}
                   onChange={(e) => setExportLevel(e.target.value)}
-                  sx={{
-          textAlign: 'right',
-          paddingRight: '1rem',
-          paddingLeft: '2rem',
-          '& + div': {
-            insetInlineEnd: 'auto',
-            insetInlineStart: '0.5rem',
-          },
-        }}
-
+                  sx={selectSx}
                 >
                   <option value="">جميع المستويات</option>
                   {levels.map((lvl) => (
@@ -586,6 +499,7 @@ export default function Students() {
                 variant="outline"
                 isLoading={isExporting}
                 onClick={() => handleExport('pdf')}
+                isDisabled
               >
                 تحميلPDF
               </Button>
@@ -597,20 +511,19 @@ export default function Students() {
                 isLoading={isExporting}
                 onClick={() => handleExport('excel')}
               >
-              تحميل Excel
+                تحميل Excel
               </Button>
             </HStack>
           </ModalFooter>
         </ModalContent>
       </Modal>
-      <ReenrollModal
-  reenrollModal={reenrollModal}
-  studentToReenroll={studentToReenroll}
-  isReenrolling={isReenrolling}
-  onConfirm={handleReenroll}
-/>
-      
 
+      <ReenrollModal
+        reenrollModal={reenrollModal}
+        studentToReenroll={studentToReenroll}
+        isReenrolling={isReenrolling}
+        onConfirm={handleReenroll}
+      />
     </Box>
   );
 }

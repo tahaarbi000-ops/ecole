@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const baseURL = "https://backend-3gmz.onrender.com/api/v1";
+const baseURL = "https://backend-bi6o.onrender.com/api/v1";
 // const baseURL = "http://localhost:5000/api/v1"
 
 

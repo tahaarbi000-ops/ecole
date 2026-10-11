@@ -38,7 +38,7 @@ export default function EmployViewModal({ isOpen, onClose, person, onEdit, roleF
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="md" isCentered>
       <ModalOverlay />
-      <ModalContent borderRadius="2xl" mx={4}>
+      <ModalContent dir='rtl' borderRadius="2xl" mx={4}>
         <ModalHeader borderBottom="1px solid" borderColor="ink.100">
           <HStack spacing={3}>
             <Avatar  name={`${person.last_name} ${person.name}`} bg="brand.600" color="white" />
@@ -52,19 +52,41 @@ export default function EmployViewModal({ isOpen, onClose, person, onEdit, roleF
             </VStack>
           </HStack>
         </ModalHeader>
-        <ModalCloseButton />
+        <ModalCloseButton 
+        insetInlineStart="3"
+        insetInlineEnd="auto"
+        />
         <ModalBody py={5}>
           <SimpleGrid columns={2} spacing={5}>
-            <Field label="Téléphone" value={person.phone} />
-            <Field textTransform={"capitalize"} label={roleFieldLabel} value={person[roleFieldKey]} />
-            <Field label="Date dépôt salaire" value={formatDate(person.date_deposited)} />
-            <Field label="Salaire" value={person.salary ? `${person.salary.toLocaleString('fr-FR')} DT` : '—'} />
-            {person.status && <Field textTransform={"capitalize"} label="Statut" value={person.status} />}
-          </SimpleGrid>
+                      <Field label="الهاتف" value={person.phone} />
+                      <Field label={roleFieldLabel} value={person[roleFieldKey]} />
+                      <Field
+                        label="تاريخ إيداع الراتب"
+                        value={formatDate(person.joined_date)}
+                      />
+                      <Field
+                        label="الراتب"
+                        value={
+                          person.salary
+                            ? `${person.salary.toLocaleString("fr-FR")} د.ت`
+                            : "—"
+                        }
+                      />
+                      {person.status && <Field label="الحالة" value={person.status} />}
+                    </SimpleGrid>
         </ModalBody>
-        <ModalFooter borderTop="1px solid" borderColor="ink.100" gap={2}>
-          <Button variant="outline" onClick={onClose}>Fermer</Button>
-          <Button onClick={() => { onClose(); onEdit(person); }}>Modifier</Button>
+         <ModalFooter borderTop="1px solid" borderColor="ink.100" gap={2}>
+          <Button variant="outline" onClick={onClose}>
+            إغلاق
+          </Button>
+          <Button
+            onClick={() => {
+              onClose();
+              onEdit(person);
+            }}
+          >
+            تعديل
+          </Button>
         </ModalFooter>
       </ModalContent>
     </Modal>

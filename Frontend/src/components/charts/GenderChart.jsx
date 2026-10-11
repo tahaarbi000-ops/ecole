@@ -15,8 +15,6 @@ export default function GenderChart({ data }) {
     color: index === 0 ? "#3182CE" : "#E53E3E",
   }));
 
-  console.log(chartData);
-
   return (
     <Box w="full" h="220px">
       <ResponsiveContainer width="100%" height="100%">

@@ -22,6 +22,7 @@ import FormModal from '../common/FormModal';
 import { levels, paiements } from '../../data/school';
 import { AxiosToken } from '../../api/Api';
 import usePricePreview from '../../hooks/usePricePreview';
+import { useQuery } from '@tanstack/react-query';
 
 
 
@@ -113,6 +114,11 @@ const studentSchema = Yup.object({
     }),
 });
 
+  const fetchZones = async () => {
+  const { data } = await AxiosToken.get('/zone');
+  return data.zones ?? [];
+};
+
 export default function StudentFormModal({
   isOpen,
   onClose,
@@ -125,46 +131,40 @@ export default function StudentFormModal({
   offerPositionLabel = null,    // NEW
   offerPromotionLabel = null,   // NEW — "خصم 50%" أو "مجاني بالكامل" عند تلميذ العرض الأخير
 }) {
-  const [zones, setZones] = useState([]);
 
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await AxiosToken.get('/zone');
-        setZones(response.data.zones);
-      } catch (err) {
-        console.error('error', err);
-      }
-    };
-    fetchData();
-  }, [isSaving]);
+  const { data: zoneData } = useQuery({
+      queryKey: ['zones'],
+      queryFn: fetchZones,
+      staleTime: 5 * 60 * 1000,
+    });
+    const zones = zoneData ?? [];
 
   const isEditMode = Boolean(student);
   const isFatherNameLocked = Boolean(lockedFatherName) && !isEditMode;
 
   const mapStudentToFormValues = (s) => ({
-    name: s.name ?? '',
-    unique_id: s.unique_id ?? '',
-    last_name: s.last_name ?? '',
-    father_name: s.father_name ?? '',
-    mother_name: s.mother_name ?? '',
-    father_phone: s.father_phone ?? '',
-    mother_phone: s.mother_phone ?? '',
-    gender: s.gender ?? 'ولد',
-    birthday: s.birthday ? s.birthday.split('T')[0] : '',
-    classe: s.class ?? '',
-    address: s.address ?? '',
-    payment_type: s.subscription?.payment_type ?? '',
-    transport: s.subscription?.transport ? 'true' : 'false',
-    is_take_uniform: s.subscription?.is_take_uniform ? 'true' : 'false',
-    is_take_book: s.subscription?.is_take_book ? 'true' : 'false',
-    zone_id: s.subscription?.zone?.id ?? '',
-  });
+  name: s.name ?? '',
+  unique_id: s.unique_id ?? '',
+  last_name: s.last_name ?? '',
+  father_name: s.father_name ?? '',
+  mother_name: s.mother_name ?? '',
+  father_phone: s.father_phone ?? '',
+  mother_phone: s.mother_phone ?? '',
+  gender: s.gender ?? 'ولد',
+  birthday: s.birthday ? s.birthday.split('T')[0] : '',
+  classe: s.class ?? '',
+  address: s.address ?? '',
+  payment_type: s.subscription?.payment_type ?? '',
+  transport: s.subscription?.transport ? 'true' : 'false',
+  is_take_uniform: s.subscription?.is_take_uniform ? 'true' : 'false',
+  is_take_book: s.subscription?.is_take_book ? 'true' : 'false',
+  zone_id:
+    s.subscription?.zone_id != null ? String(s.subscription.zone_id) : '',
+});
 
-  const initialValues = student
-    ? mapStudentToFormValues(student)
-    : { ...EMPTY_FORM, father_name: lockedFatherName || '' }; // NEW
+const initialValues = student
+  ? mapStudentToFormValues(student)
+  : { ...EMPTY_FORM, father_name: lockedFatherName || '' };
 
 
 
@@ -349,7 +349,6 @@ export default function StudentFormModal({
                 <FormErrorMessage>{errors.payment_type}</FormErrorMessage>
               </FormControl>
 
-              {['التحضيري', 'السنة الأولى', 'السنة الثانية', 'السنة الثالثة', 'السنة الرابعة'].includes(values.classe) && (
                 <FormControl isRequired>
                   <FormLabel fontSize="sm">اقتناء الكتب</FormLabel>
                   <RadioGroup value={values.is_take_book} onChange={(value) => setFieldValue('is_take_book', value)}>
@@ -359,7 +358,6 @@ export default function StudentFormModal({
                     </HStack>
                   </RadioGroup>
                 </FormControl>
-              )}
 
               <FormControl isRequired>
                 <FormLabel fontSize="sm">اقتناء ميدعة</FormLabel>

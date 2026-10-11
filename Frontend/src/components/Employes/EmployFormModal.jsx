@@ -351,7 +351,7 @@ export default function EmployFormModal({
               }
             >
               <FormLabel fontSize="sm">
-                Statut
+                الحالة
               </FormLabel>
 
               <Select
