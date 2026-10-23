@@ -66,18 +66,12 @@ const studentSchema = Yup.object({
     .trim(),
 
   father_phone: Yup.string()
-    .matches(
-      /^\d[\d\s]{6,}$/,
-      'رقم هاتف الأب غير صالح.'
-    )
-    .nullable(),
+  .matches(/^\d{8}$/, 'رقم هاتف الأب غير صالح.')
+  .nullable(),
 
-  mother_phone: Yup.string()
-    .matches(
-      /^\d[\d\s]{6,}$/,
-      'رقم هاتف الأم غير صالح.'
-    )
-    .nullable(),
+mother_phone: Yup.string()
+  .matches(/^\d{8}$/, 'رقم هاتف الأم غير صالح.')
+  .nullable(),
 
   gender: Yup.string()
     .oneOf(
