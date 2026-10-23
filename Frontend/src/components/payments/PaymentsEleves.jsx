@@ -14,6 +14,10 @@ import {
   Wrap,
   SimpleGrid,
   Icon,
+  Input,
+  FormControl,
+  FormLabel,
+  FormErrorMessage,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -37,13 +41,24 @@ const STATUS_COLORS = {
   payé: { bg: 'positive.50', color: 'positive.600' },
   'non payé': { bg: 'accent.50', color: 'accent.500' },
   'en attente': { bg: 'warning.50', color: 'warning.500' },
+  partially_paid: { bg: 'warning.50', color: 'warning.500' },
 };
 
 const STATUS_LABELS = {
   payé: 'مدفوع',
   'non payé': 'غير مدفوع',
   'en attente': 'قيد الانتظار',
+  partially_paid: 'مدفوع جزئيًا',
 };
+
+// Payment types where the parent can pay all at once or in parts
+const UPFRONT_TYPES = ['يدفع بالثلاثي', 'يدفع سنويًا'];
+
+// studentPayment can be a single object (hasOne) or an array (hasMany) — normalize to array
+function toArray(value) {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
 
 function formatDate(iso) {
   if (!iso) return '—';
@@ -116,6 +131,8 @@ export default function PaymentsEleves() {
 
   const [payTarget, setPayTarget] = useState(null);
   const [historyStudent, setHistoryStudent] = useState(null);
+  const [showPartInput, setShowPartInput] = useState(false);
+  const [partAmount, setPartAmount] = useState('');
 
   const payModal = useDisclosure();
   const historyModal = useDisclosure();
@@ -150,27 +167,50 @@ export default function PaymentsEleves() {
     return Array.from(set).sort().reverse();
   }, [data?.years]);
 
-  // History comes from the subscription's own studentPayment array.
+  // History comes from the subscription's own studentPayment (object or array).
   const historyRows = useMemo(() => {
-    if (!historyStudent?.studentPayment) return [];
-    return [...historyStudent.studentPayment].sort(
+    return toArray(historyStudent?.studentPayment).sort(
       (a, b) => new Date(b.date) - new Date(a.date)
     );
   }, [historyStudent]);
 
+  // --- Pay modal derived values ---
+  const totalAmount = Number(payTarget?.amount ?? 0);
+  const paidSoFar = toArray(payTarget?.studentPayment).reduce(
+    (sum, p) => sum + Number(p.amount ?? 0),
+    0
+  );
+  const remaining = Math.max(totalAmount - paidSoFar, 0);
+
+  const isPartiallyPaid = payTarget?.status === 'partially_paid';
+  const isUpfront = UPFRONT_TYPES.includes(payTarget?.payment_type);
+
+  // 'choice' = pay everything that is left OR pay a part
+  //            (partially_paid, or quarterly/yearly not paid yet)
+  // 'full'   = simple confirmation
+  const payMode = isPartiallyPaid || (isUpfront && payTarget?.status === 'non payé')
+    ? 'choice'
+    : 'full';
+
+  const partNumber = Number(partAmount);
+  const partInvalid =
+    partAmount !== '' && (Number.isNaN(partNumber) || partNumber <= 0 || partNumber >= remaining);
+  const canConfirmPart = partAmount !== '' && !partInvalid;
+
   const payMutation = useMutation({
-    mutationFn: (id) => AxiosToken.post(`/subscription/${id}/pay`),
-    onSuccess: () => {
+    // amount omitted => backend pays the full remaining amount
+    mutationFn: ({ id, amount }) =>
+      AxiosToken.post(`/subscription/${id}/pay`, amount != null ? { amount } : {}),
+    onSuccess: (_res, variables) => {
       toast({
         title: 'تم تأكيد الدفع',
-        description: `${payTarget?.student?.name} ${payTarget?.student?.last_name} — ${payTarget?.amount?.toLocaleString('fr-FR')} د.ت`,
+        description: `${payTarget?.student?.name} ${payTarget?.student?.last_name} — ${(variables.amount ?? remaining).toLocaleString('fr-FR')} د.ت`,
         status: 'success',
         duration: 3000,
         isClosable: true,
       });
       queryClient.invalidateQueries({ queryKey: ['subscriptions'] });
-      payModal.onClose();
-      setPayTarget(null);
+      closePayModal();
     },
     onError: () => {
       toast({
@@ -183,10 +223,29 @@ export default function PaymentsEleves() {
     },
   });
 
-  const askPay = (p) => { setPayTarget(p); payModal.onOpen(); };
+  const closePayModal = () => {
+    payModal.onClose();
+    setPayTarget(null);
+    setShowPartInput(false);
+    setPartAmount('');
+  };
+
+  const askPay = (p) => {
+    setPayTarget(p);
+    setShowPartInput(false);
+    setPartAmount('');
+    payModal.onOpen();
+  };
   const openHistory = (p) => { setHistoryStudent(p); historyModal.onOpen(); };
-  const handleConfirmPay = () => {
-    if (payTarget) payMutation.mutate(payTarget.id);
+
+  // No amount => backend pays the whole remaining balance
+  const payAll = () => {
+    if (payTarget) payMutation.mutate({ id: payTarget.id });
+  };
+  const payPart = () => {
+    if (payTarget && canConfirmPart) {
+      payMutation.mutate({ id: payTarget.id, amount: partNumber });
+    }
   };
 
   const isFiltered =
@@ -204,26 +263,46 @@ export default function PaymentsEleves() {
     setMonthFilter(CURRENT_MONTH);
   };
 
-  const columns = [
-    { key: 'unique_id', label: 'المعرّف', sortable: true, render: (row) => row.student.unique_id || row.id },
-    { key: 'eleve', label: 'الطالب', sortable: true, render: (row) => row.student.name + ' ' + row.student.last_name },
-    { key: 'class', label: 'المستوى', sortable: true, render: (row) => <Badge bg="ink.100" color="ink.700" borderRadius="full" px={2.5}>{row.student.class}</Badge> },
-    { key: 'montant', label: 'المبلغ', sortable: true, isNumeric: true, render: (row) => `${row.amount?.toLocaleString('fr-FR')} د.ت` },
-    { key: 'datePaiement', label: 'الفترة', sortable: true, render: (row) => formatMonthLabel(row.month) },
-    {
-      key: 'status',
-      label: 'الحالة',
-      sortable: true,
-      render: (row) => {
-        const c = STATUS_COLORS[row.status] || { bg: 'ink.100', color: 'ink.700' };
-        return (
-          <Badge bg={c.bg} color={c.color} borderRadius="full" px={2.5}>
-            {STATUS_LABELS[row.status] || row.status}
-          </Badge>
-        );
-      },
+  const getSchoolYearLabel = (month) => {
+  if (!month) return '-';
+  const [y, m] = month.split('-').map(Number);
+  return m >= 9 ? `${y}-${y + 1}` : `${y - 1}-${y}`;
+};
+
+const getTermNumber = (month) => {
+  const m = Number(month?.split('-')[1]);
+  if (m >= 9 && m <= 12) return 1; // Sep-Dec
+  if (m >= 1 && m <= 3) return 2;  // Jan-Mar
+  return 3;                        // Apr-Aug
+};
+
+const formatPeriod = (row) => {
+  const type = row.payment_type || '';
+  if (type.includes('سنوي')) return getSchoolYearLabel(row.month);
+  if (type.includes('ثلاثي')) return `الثلاثي ${getTermNumber(row.month)} · ${getSchoolYearLabel(row.month)}`;
+  return formatMonthLabel(row.month);
+};
+
+const columns = [
+  { key: 'unique_id', label: 'المعرّف', sortable: true, render: (row) => row.student.unique_id || row.id },
+  { key: 'eleve', label: 'الطالب', sortable: true, render: (row) => row.student.name + ' ' + row.student.last_name },
+  { key: 'class', label: 'المستوى', sortable: true, render: (row) => <Badge bg="ink.100" color="ink.700" borderRadius="full" px={2.5}>{row.student.class}</Badge> },
+  { key: 'montant', label: 'المبلغ', sortable: true, isNumeric: true, render: (row) => `${row.amount?.toLocaleString('fr-FR')} د.ت` },
+  { key: 'datePaiement', label: 'الفترة', sortable: true, render: (row) => formatPeriod(row) },
+  {
+    key: 'status',
+    label: 'الحالة',
+    sortable: true,
+    render: (row) => {
+      const c = STATUS_COLORS[row.status] || { bg: 'ink.100', color: 'ink.700' };
+      return (
+        <Badge bg={c.bg} color={c.color} borderRadius="full" px={2.5}>
+          {STATUS_LABELS[row.status] || row.status}
+        </Badge>
+      );
     },
-  ];
+  },
+];
 
   return (
     <Box dir="rtl">
@@ -329,7 +408,7 @@ export default function PaymentsEleves() {
         >
           <option value="">جميع الحالات</option>
           {paymentStatuses.map((s) => (
-            <option key={s} value={s}>{s}</option>
+            <option key={s} value={s}>{STATUS_LABELS[s] || s}</option>
           ))}
         </Select>
 
@@ -372,34 +451,116 @@ export default function PaymentsEleves() {
         )}
       />
 
-      <Modal isOpen={payModal.isOpen} onClose={payModal.onClose} isCentered size="sm">
+      {/* Pay modal */}
+      <Modal isOpen={payModal.isOpen} onClose={closePayModal} isCentered size="sm">
         <ModalOverlay />
-        <ModalContent borderRadius="xl">
-          <ModalHeader>تأكيد الدفع</ModalHeader>
+        <ModalContent borderRadius="xl" dir="rtl">
+          <ModalHeader>
+            {isPartiallyPaid ? 'دفع المبلغ المتبقي' : 'تأكيد الدفع'}
+          </ModalHeader>
           <ModalCloseButton />
           <ModalBody>
             <Text fontSize="sm" color="ink.600">
-              هل تريد تأكيد الدفع لـ{' '}
+              {payMode === 'choice'
+                ? 'هل تريد دفع كامل المبلغ المتبقي أم جزء منه لـ'
+                : 'هل تريد تأكيد الدفع لـ'}{' '}
               <Text as="span" fontWeight="700" color="ink.900">
                 {payTarget?.student?.name} {payTarget?.student?.last_name}
               </Text>{' '}؟
             </Text>
-            {payTarget && (
+
+            {payTarget && payMode === 'full' && (
               <Text fontSize="xs" color="ink.400" mt={2}>
                 {payTarget.amount?.toLocaleString('fr-FR')} د.ت — {payTarget.student?.class}
               </Text>
             )}
+
+            {payTarget && payMode === 'choice' && (
+              <VStack align="stretch" spacing={1} mt={3} fontSize="sm">
+                <HStack justify="space-between">
+                  <Text color="ink.500">المبلغ الإجمالي</Text>
+                  <Text fontWeight="600">{totalAmount.toLocaleString('fr-FR')} د.ت</Text>
+                </HStack>
+                {paidSoFar > 0 && (
+                  <HStack justify="space-between">
+                    <Text color="ink.500">المدفوع</Text>
+                    <Text fontWeight="600" color="positive.600">{paidSoFar.toLocaleString('fr-FR')} د.ت</Text>
+                  </HStack>
+                )}
+                <Divider />
+                <HStack justify="space-between">
+                  <Text color="ink.500">المتبقي</Text>
+                  <Text fontWeight="700" color="accent.500">{remaining.toLocaleString('fr-FR')} د.ت</Text>
+                </HStack>
+              </VStack>
+            )}
+
+            {payMode === 'choice' && showPartInput && (
+              <FormControl mt={4} isInvalid={partInvalid}>
+                <FormLabel fontSize="sm">المبلغ المدفوع الآن (د.ت)</FormLabel>
+                <Input
+                  type="number"
+                  min="0"
+                  step="any"
+                  autoFocus
+                  value={partAmount}
+                  onChange={(e) => setPartAmount(e.target.value)}
+                  placeholder="0.00"
+                />
+                <FormErrorMessage>
+                  المبلغ يجب أن يكون أكبر من 0 وأقل من المتبقي ({remaining.toLocaleString('fr-FR')} د.ت).
+                </FormErrorMessage>
+              </FormControl>
+            )}
           </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={payModal.onClose}>إلغاء</Button>
-            <Button colorScheme="green" onClick={handleConfirmPay} isLoading={payMutation.isPending}>تأكيد</Button>
+
+          <ModalFooter gap={2}>
+            {payMode === 'full' && (
+              <>
+                <Button variant="ghost" onClick={closePayModal}>إلغاء</Button>
+                <Button colorScheme="green" onClick={payAll} isLoading={payMutation.isPending}>تأكيد</Button>
+              </>
+            )}
+
+            {payMode === 'choice' && !showPartInput && (
+              <>
+                <Button variant="ghost" onClick={closePayModal}>إلغاء</Button>
+                <Button variant="outline" onClick={() => setShowPartInput(true)} isDisabled={payMutation.isPending}>
+                  دفع جزء
+                </Button>
+                <Button colorScheme="green" onClick={payAll} isLoading={payMutation.isPending}>
+                  {isPartiallyPaid ? 'دفع المتبقي' : 'دفع الكل'}
+                </Button>
+              </>
+            )}
+
+            {payMode === 'choice' && showPartInput && (
+              <>
+                <Button
+                  variant="ghost"
+                  onClick={() => { setShowPartInput(false); setPartAmount(''); }}
+                  isDisabled={payMutation.isPending}
+                >
+                  رجوع
+                </Button>
+                <Button
+                  colorScheme="green"
+                  onClick={payPart}
+                  isDisabled={!canConfirmPart}
+                  isLoading={payMutation.isPending}
+                >
+                  تأكيد الدفع الجزئي
+                </Button>
+              </>
+            )}
           </ModalFooter>
         </ModalContent>
       </Modal>
 
+      {/* History modal */}
       <Modal isOpen={historyModal.isOpen} onClose={historyModal.onClose} size="lg">
         <ModalOverlay />
-        <ModalContent borderRadius="xl">
+        <ModalContent borderRadius="xl" dir="rtl">
           <ModalHeader>
             سجل المدفوعات
             {historyStudent && (
@@ -417,7 +578,7 @@ export default function PaymentsEleves() {
                 {historyRows.map((p) => (
                   <HStack key={p.id} justify="space-between" py={3}>
                     <Box>
-                      <Text fontSize="sm" fontWeight="600" color="ink.800">{p.amount?.toLocaleString('fr-FR')} د.ت</Text>
+                      <Text fontSize="sm" fontWeight="600" color="ink.800">{Number(p.amount ?? 0).toLocaleString('fr-FR')} د.ت</Text>
                       <Text fontSize="xs" color="ink.400">{formatDate(p.date)}</Text>
                     </Box>
                     <Badge

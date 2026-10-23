@@ -55,7 +55,7 @@ Subscription.belongsTo(Zone,{
     as:"zone"
 })
 
-Subscription.hasOne(StudentPayment,{
+Subscription.hasMany(StudentPayment,{
     foreignKey:"subscription_id",
     as:"studentPayment"
 })

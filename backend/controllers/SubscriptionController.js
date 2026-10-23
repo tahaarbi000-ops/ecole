@@ -115,6 +115,7 @@ exports.getAllSubscription = async (req, res) => {
 exports.paySubscription = async (req, res) => {
     try {
         const { id } = req.params;
+        const { amount } = req.body || {};
 
         const user = await getUser(req);
 
@@ -122,7 +123,7 @@ exports.paySubscription = async (req, res) => {
             include: [
                 {
                     model: Student,
-                    as:"student",
+                    as: "student",
                     attributes: ["id", "name", "last_name"],
                 },
             ],
@@ -134,24 +135,81 @@ exports.paySubscription = async (req, res) => {
             });
         }
 
-        // Already paid
+        // Already fully paid
         if (subscription.status === "payé") {
             return res.status(400).json({
                 message: "subscription already paid.",
             });
         }
 
-        await subscription.update({
-            status: "payé",
-        });
-        await StudentPayment.create({
-            amount: subscription.amount,
-            date: new Date(),
-            subscription_id: subscription.id,
+        const round = (n) => Math.round(n * 1000) / 1000;
+
+        const total = parseFloat(subscription.amount) || 0;
+
+        const paidSoFar = round(
+            (await StudentPayment.sum("amount", {
+                where: { subscription_id: subscription.id },
+            })) || 0
+        );
+
+        const remaining = round(Math.max(total - paidSoFar, 0));
+
+        if (remaining <= 0) {
+            return res.status(400).json({
+                message: "nothing left to pay.",
+            });
+        }
+
+        // No amount => pay everything that is left
+        let payNow = remaining;
+
+        if (amount !== undefined && amount !== null && amount !== "") {
+            const parsed = parseFloat(amount);
+
+            if (Number.isNaN(parsed) || parsed <= 0) {
+                return res.status(400).json({
+                    message: "Invalid amount.",
+                });
+            }
+
+            if (parsed > remaining + 0.001) {
+                return res.status(400).json({
+                    message: "Amount cannot exceed the remaining balance.",
+                });
+            }
+
+            // Partial payment only for quarterly / yearly
+            const isUpfront =
+                subscription.payment_type === "يدفع بالثلاثي" ||
+                subscription.payment_type === "يدفع سنويًا";
+
+            if (!isUpfront && parsed < remaining - 0.001) {
+                return res.status(400).json({
+                    message: "Partial payment is not allowed for this payment type.",
+                });
+            }
+
+            payNow = round(parsed);
+        }
+
+        const newPaid = round(paidSoFar + payNow);
+        const newStatus = newPaid >= total - 0.001 ? "payé" : "partially_paid";
+
+        await Subscription.sequelize.transaction(async (t) => {
+            await StudentPayment.create(
+                {
+                    amount: payNow,
+                    date: new Date(),
+                    subscription_id: subscription.id,
+                },
+                { transaction: t }
+            );
+
+            await subscription.update({ status: newStatus }, { transaction: t });
         });
 
-        const studentName = subscription.Student
-            ? `${subscription.Student.name} ${subscription.Student.last_name}`
+        const studentName = subscription.student
+            ? `${subscription.student.name} ${subscription.student.last_name}`
             : `Subscription #${subscription.id}`;
 
         await ActivityLog.create({
@@ -159,14 +217,23 @@ exports.paySubscription = async (req, res) => {
             entity_type: "subscription",
             entity_id: subscription.id,
             entity_name: studentName,
-            description: `تم دفع اشتراك التلميذ ${studentName} بمبلغ ${subscription.amount}`,
+            description:
+                newStatus === "payé"
+                    ? `تم دفع اشتراك التلميذ ${studentName} بمبلغ ${payNow}`
+                    : `تم دفع جزء من اشتراك التلميذ ${studentName} بمبلغ ${payNow} (المتبقي ${round(total - newPaid)})`,
             user_name: `${user.name} ${user.last_name}`,
             user_role: user.role,
             user_id: user.id,
         });
 
         return res.json({
-            message: "subscription payed with success.",
+            message:
+                newStatus === "payé"
+                    ? "subscription payed with success."
+                    : "partial payment recorded.",
+            status: newStatus,
+            paid: newPaid,
+            remaining: round(total - newPaid),
         });
 
     } catch (error) {

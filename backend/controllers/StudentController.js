@@ -73,9 +73,15 @@ exports.createStudent = [
         .isIn(["discount_50", "free"])
         .withMessage("Invalid promotion type."),
 
+    // المبلغ المدفوع فعليًا (اختياري). فارغ = دفع كامل المبلغ
+    body("paid_amount")
+        .optional({ checkFalsy: true })
+        .isFloat({ gt: 0 })
+        .withMessage("Invalid paid amount."),
+
     async (req, res) => {
         try {
-        const user = await getUser(req);
+            const user = await getUser(req);
 
             const errors = validationResult(req);
 
@@ -85,7 +91,7 @@ exports.createStudent = [
                     errors: errors.array(),
                 });
             }
-            const month = currentPeriod()
+            const month = currentPeriod();
 
             const {
                 name,
@@ -106,6 +112,7 @@ exports.createStudent = [
                 zone_id,
                 promotion,
                 siblings_count,
+                paid_amount,
             } = req.body;
 
             if (unique_id != null && unique_id !== "") {
@@ -124,20 +131,20 @@ exports.createStudent = [
             }
             const toBool = (v) => v === true || v === "true";
 
-
             const bookFee = (toBool(is_take_book) && !daycareBooksFee.books_disabled)
                 ? parseFloat(daycareBooksFee.books)
                 : 0;
-                 const uniformFee = (toBool(is_take_uniform))
-                ? parseFloat(daycareBooksFee.books)
+            const uniformFee = (toBool(is_take_uniform))
+                ? parseFloat(daycareBooksFee.uniform)
                 : 0;
 
             const addition =
                 bookFee +
-                uniformFee
+                uniformFee;
 
             let totalPrice = null;
-
+            let paidNow = null;
+            let subscriptionStatus = "payé";
 
             if (
                 payment_type === "يدفع شهريًا" ||
@@ -182,6 +189,31 @@ exports.createStudent = [
                     totalPrice = 0;
                 }
 
+                // المبلغ المدفوع: فقط للثلاثي والسنوي. فارغ = دفع كامل المبلغ
+                paidNow = totalPrice;
+
+                const isUpfrontType =
+                    payment_type === "يدفع بالثلاثي" || payment_type === "يدفع سنويًا";
+
+                if (isUpfrontType && paid_amount != null && paid_amount !== "") {
+                    const paid = parseFloat(paid_amount);
+
+                    if (Number.isNaN(paid) || paid <= 0) {
+                        return res.status(400).json({
+                            message: "Invalid paid amount.",
+                        });
+                    }
+
+                    if (paid > totalPrice + 0.001) {
+                        return res.status(400).json({
+                            message: "Paid amount cannot exceed the total price.",
+                        });
+                    }
+
+                    paidNow = paid;
+                    subscriptionStatus = paid < totalPrice - 0.001 ? "partially_paid" : "payé";
+                }
+
             } else if (payment_type !== "غير معني بالدفع") {
                 return res.status(400).json({
                     message: "Invalid payment type.",
@@ -202,16 +234,17 @@ exports.createStudent = [
                 address,
             });
 
-             const schoolYear = await SchoolYear.findOne({
-          where: {
-            status: "active",
-          },
-          order: [["start_date", "DESC"]],
-        });
+            const schoolYear = await SchoolYear.findOne({
+                where: {
+                    status: "active",
+                },
+                order: [["start_date", "DESC"]],
+            });
 
             if (payment_type !== "غير معني بالدفع") {
-               const subscription =  await Subscription.create({
+                const subscription = await Subscription.create({
                     amount: totalPrice,
+                    status: subscriptionStatus,
                     student_id: student.id,
                     transport,
                     is_take_book,
@@ -220,20 +253,20 @@ exports.createStudent = [
                     payment_type,
                     promotion: promotion || null,
                     siblings_count: siblings_count || null,
-                    school_year_id:schoolYear.id,
+                    school_year_id: schoolYear.id,
                     month,
                 });
 
-                 await StudentPayment.create({
-            amount: totalPrice,
-            date: new Date(),
-            subscription_id: subscription.id,
+                await StudentPayment.create({
+                    amount: paidNow,
+                    date: new Date(),
+                    subscription_id: subscription.id,
                 });
             }
 
-             await Enrollment.create(
-        { student_id: student.id, school_year_id: schoolYear.id },
-      );
+            await Enrollment.create(
+                { student_id: student.id, school_year_id: schoolYear.id },
+            );
 
             await ActivityLog.create({
                 action: "create",
@@ -244,7 +277,6 @@ exports.createStudent = [
                 user_name: `${user.name} ${user.last_name}`,
                 user_role: user.role,
                 user_id: user.id,
-               
             });
 
             return res.status(201).json({

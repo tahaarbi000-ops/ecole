@@ -27,7 +27,7 @@ const Subscription = sequelize.define(
             ),
         },
         status: {
-            type: DataTypes.ENUM("payé", "en attente", "non payé"),
+            type: DataTypes.ENUM("payé", "en attente", "non payé","partially_paid"),
             defaultValue: "payé",
         },
         is_take_book: {
