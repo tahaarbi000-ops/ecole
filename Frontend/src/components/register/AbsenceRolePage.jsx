@@ -109,7 +109,7 @@ export default function AbsenceRolePage({
       .finally(() => {
         setIsLoading(false);
       });
-  }, [personsEndpoint, personsResponseKey, personLabel, isSaving]);
+  }, [personsEndpoint, personsResponseKey, personLabel, isSaving, isDeleting]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -137,27 +137,53 @@ export default function AbsenceRolePage({
 
   const handleSubmit = async (formData) => {
     if (!personsEndpoint) return;
+    const isEdit = Boolean(selected?.id);
+
     try {
       setIsSaving(true);
-      await AxiosToken.post(`absence${personsEndpoint}`, formData);
+
+      if (isEdit) {
+        // PUT /absence/:id -> updateAbsence
+        await AxiosToken.put(`/absence/${selected.id}`, formData);
+      } else {
+        await AxiosToken.post(`absence${personsEndpoint}`, formData);
+      }
+
+      toast({
+        title: isEdit ? 'تم تعديل الغياب بنجاح' : 'تم تسجيل الغياب بنجاح',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
       formModal.onClose();
-    } catch {
-      console.error('error');
+      setSelected(null);
+    } catch (err) {
+      console.error(isEdit ? 'Erreur modification absence' : 'Erreur ajout absence', err);
+      toast({
+        title: isEdit ? 'فشل تعديل الغياب' : 'فشل تسجيل الغياب',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!canDelete || !toDelete) return;
-    setIsDeleting(true);
-    setTimeout(() => {
-      setItems((prev) => prev.filter((a) => a.id !== toDelete.id));
-      toast({ title: 'Absence supprimée', status: 'info', duration: 3000, isClosable: true });
-      setIsDeleting(false);
+    try {
+      setIsDeleting(true);
+      await AxiosToken.delete(`/absence/${toDelete.id}`);
+      toast({ title: 'تم حذف الغياب بنجاح', status: 'info', duration: 3000, isClosable: true });
       deleteDialog.onClose();
       setToDelete(null);
-    }, 500);
+    } catch (err) {
+      console.error('Erreur suppression absence', err);
+      toast({ title: 'فشل حذف الغياب', status: 'error', duration: 3000, isClosable: true });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const columns = [
@@ -283,8 +309,8 @@ export default function AbsenceRolePage({
         onClose={deleteDialog.onClose}
         onConfirm={handleDelete}
         isLoading={isDeleting}
-        title="Supprimer cette absence ?"
-        message={toDelete ? `Voulez-vous vraiment supprimer l\u2019absence de ${getPersonName(toDelete)} du ${formatDate(toDelete.date)} ?` : ''}
+        title="هل تريد حذف هذا الغياب؟"
+        message={toDelete ? `هل أنت متأكد من حذف غياب ${getPersonName(toDelete)} بتاريخ ${formatDate(toDelete.date)}؟` : ''}
       />
     </Box>
   );

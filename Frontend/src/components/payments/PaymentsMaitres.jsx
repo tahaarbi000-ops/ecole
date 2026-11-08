@@ -32,7 +32,7 @@ import { AxiosToken } from '../../api/Api';
 
 const STATUS_COLORS = {
   payé: { bg: 'positive.50', color: 'positive.600' },
-  'no payé': { bg: 'accent.50', color: 'accent.500' },
+  'non payé': { bg: 'accent.50', color: 'accent.500' },
   'en attente': { bg: 'warning.50', color: 'warning.500' },
 };
 
@@ -58,7 +58,7 @@ function pad2(n) {
   return String(n).padStart(2, '0');
 }
 
-// Clé "YYYY-MM" construite depuis les vrais champs month/year de la ligne de paie — PAS createdAt
+// "YYYY-MM" built from the real month/year fields of the payroll row (NOT createdAt)
 function periodKey(payment) {
   return `${payment.year}-${pad2(payment.month)}`;
 }
@@ -68,10 +68,30 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('fr-FR');
 }
 
-// "YYYY-MM" -> "سبتمبر 2026"
+// "2026-09" -> "سبتمبر 2026"
 function formatMonthLabel(monthKey) {
   const [year, month] = monthKey.split('-').map(Number);
   return `${ARABIC_MONTHS[month - 1]} ${year}`;
+}
+
+function formatMoney(value) {
+  return `${Number(value || 0).toLocaleString('fr-FR')} د.ت`;
+}
+
+// Safety net for legacy rows written with the typo "no payé"
+function normalizeStatus(status) {
+  return status === 'no payé' ? 'non payé' : status;
+}
+
+// Works with both API shapes: nested `paymentTeacher` or flat name/last_name
+function teacherName(p) {
+  const name = p.paymentTeacher?.name ?? p.name ?? '';
+  const lastName = p.paymentTeacher?.last_name ?? p.last_name ?? '';
+  return `${name} ${lastName}`.trim();
+}
+
+function paymentId(p) {
+  return p.id ?? p.payment_id;
 }
 
 export default function PaymentsMaitres() {
@@ -95,12 +115,17 @@ export default function PaymentsMaitres() {
   const payModal = useDisclosure();
   const historyModal = useDisclosure();
 
+  // Load ALL months (no month/year params), filtering happens on the client
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const response = await AxiosToken.get('/teacher-payment', { params: { month: now.getMonth() + 1, year: now.getFullYear() } });
-        setPayments(response.data.payments);
+        const response = await AxiosToken.get('/teacher-payment');
+        const rows = (response.data.payments || []).map((p) => ({
+          ...p,
+          status: normalizeStatus(p.status),
+        }));
+        setPayments(rows);
       } catch {
         toast({ title: 'خطأ أثناء تحميل المدفوعات', status: 'error', duration: 3000, isClosable: true });
       } finally {
@@ -108,6 +133,7 @@ export default function PaymentsMaitres() {
       }
     };
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const availableYears = useMemo(() => {
@@ -122,13 +148,15 @@ export default function PaymentsMaitres() {
         .filter((p) => !yearFilter || String(p.year) === yearFilter)
         .map((p) => periodKey(p))
     );
+    // keep the current month selectable even if it has no rows yet
+    if (!yearFilter || yearFilter === currentYear) set.add(currentPeriodKey);
     return Array.from(set).sort().reverse();
-  }, [payments, yearFilter]);
+  }, [payments, yearFilter, currentYear, currentPeriodKey]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return payments.filter((p) => {
-      const matchesSearch = !term || (p.paymentTeacher.name + ' ' + p.paymentTeacher.last_name).toLowerCase().includes(term);
+      const matchesSearch = !term || teacherName(p).toLowerCase().includes(term);
       const matchesYear = !yearFilter || String(p.year) === yearFilter;
       const matchesMonth = !monthFilter || periodKey(p) === monthFilter;
       const matchesStatus = !statusFilter || p.status === statusFilter;
@@ -136,17 +164,28 @@ export default function PaymentsMaitres() {
     });
   }, [payments, search, yearFilter, monthFilter, statusFilter]);
 
+  const selectedPeriodKey = monthFilter || currentPeriodKey;
+
+  // Total actually paid (status "payé") in the selected month
   const totalEncaisseCeMois = useMemo(
     () =>
       payments
-        .filter((p) => periodKey(p) === currentPeriodKey && p.status !== 'en attente')
-        .reduce((sum, p) => sum + Number(p.amount), 0),
-    [payments, currentPeriodKey]
+        .filter((p) => periodKey(p) === selectedPeriodKey && p.status === 'payé')
+        .reduce((sum, p) => sum + Number(p.amount || 0), 0),
+    [payments, selectedPeriodKey]
   );
-  const totalPayeFiltre = useMemo(
-    () => filtered.filter((p) => p.status === 'payé' || p.status === 'partiel').reduce((sum, p) => sum + Number(p.amount), 0),
+
+  // Total due (all statuses) within the current filter
+  const totalDuFiltre = useMemo(
+    () => filtered.reduce((sum, p) => sum + Number(p.amount || 0), 0),
     [filtered]
   );
+
+  const totalPayeFiltre = useMemo(
+    () => filtered.filter((p) => p.status === 'payé').reduce((sum, p) => sum + Number(p.amount || 0), 0),
+    [filtered]
+  );
+
   const totalRestantFiltre = useMemo(
     () => filtered.filter((p) => p.status !== 'payé').length,
     [filtered]
@@ -155,7 +194,7 @@ export default function PaymentsMaitres() {
   const historyRows = useMemo(() => {
     if (!historyPerson) return [];
     return payments
-      .filter((p) => p.paymentTeacher?.id === historyPerson.paymentTeacher?.id)
+      .filter((p) => p.teacher_id === historyPerson.teacher_id)
       .sort((a, b) => (b.year - a.year) || (b.month - a.month));
   }, [payments, historyPerson]);
 
@@ -166,11 +205,21 @@ export default function PaymentsMaitres() {
     if (!payTarget) return;
     setIsPaying(true);
     try {
-      const response = await AxiosToken.patch(`/teacher-payments/${payTarget.id}/pay`);
-      setPayments((prev) => prev.map((p) => (p.id === payTarget.id ? response.data.payment : p)));
+      const id = paymentId(payTarget);
+      const response = await AxiosToken.patch(`/teacher-payments/${id}/pay`);
+      const updated = response.data.payment;
+
+      setPayments((prev) =>
+        prev.map((p) =>
+          paymentId(p) === id
+            ? { ...p, ...(updated || {}), status: normalizeStatus(updated?.status ?? 'payé') }
+            : p
+        )
+      );
+
       toast({
         title: 'تم تأكيد الدفع',
-        description: `${payTarget.paymentTeacher.name} ${payTarget.paymentTeacher.last_name} — ${Number(payTarget.amount)?.toLocaleString('fr-FR')} د.ت`,
+        description: `${teacherName(payTarget)} — ${formatMoney(payTarget.amount)}`,
         status: 'success',
         duration: 3000,
         isClosable: true,
@@ -192,11 +241,11 @@ export default function PaymentsMaitres() {
   };
 
   const columns = [
-    { key: 'id', label: 'رقم بطاقة التعريف', sortable: true, render: (row) => row?.cin },
-    { key: 'maitre', label: 'المعلم', sortable: true, render: (row) => row?.name + ' ' + row?.last_name },
+    { key: 'cin', label: 'رقم بطاقة التعريف', sortable: true, render: (row) => row?.cin || row?.paymentTeacher?.cin || '—' },
+    { key: 'maitre', label: 'المعلم', sortable: true, render: (row) => teacherName(row) },
     { key: 'periode', label: 'الفترة', sortable: true, render: (row) => formatMonthLabel(periodKey(row)) },
-    { key: 'hour_count', label: 'عدد الساعات', sortable: true },
-    { key: 'amount', label: 'المبلغ', sortable: true, isNumeric: true, render: (row) => `${Number(row.amount)?.toLocaleString('fr-FR')} د.ت` },
+    { key: 'hour_count', label: 'عدد الساعات', sortable: true, render: (row) => Number(row.hour_count || 0) },
+    { key: 'amount', label: 'المبلغ', sortable: true, isNumeric: true, render: (row) => formatMoney(row.amount) },
     {
       key: 'status',
       label: 'الحالة',
@@ -212,6 +261,9 @@ export default function PaymentsMaitres() {
     },
   ];
 
+  const hasActiveFilters =
+    search || yearFilter !== currentYear || monthFilter !== currentPeriodKey || statusFilter;
+
   return (
     <Box dir="rtl">
       <PaymentsSubNav />
@@ -219,11 +271,11 @@ export default function PaymentsMaitres() {
       <SimpleGrid columns={{ base: 1, sm: 3 }} spacing={5} mb={6}>
         <Box bg="brand.600" borderRadius="2xl" p={5} color="white" boxShadow="card">
           <HStack justify="space-between" mb={3}>
-            <Text fontSize="sm" fontWeight="600" color="whiteAlpha.800">إجمالي المحصّل هذا الشهر</Text>
+            <Text fontSize="sm" fontWeight="600" color="whiteAlpha.800">إجمالي المحصّل لهذا الشهر</Text>
             <Wallet size={18} />
           </HStack>
-          <Text fontFamily="heading" fontSize="2xl" fontWeight="700">{totalEncaisseCeMois?.toLocaleString('fr-FR')} د.ت</Text>
-          <Text fontSize="xs" color="whiteAlpha.700" mt={1}>{formatMonthLabel(currentPeriodKey)}</Text>
+          <Text fontFamily="heading" fontSize="2xl" fontWeight="700">{formatMoney(totalEncaisseCeMois)}</Text>
+          <Text fontSize="xs" color="whiteAlpha.700" mt={1}>{formatMonthLabel(selectedPeriodKey)}</Text>
         </Box>
 
         <Box bg="white" borderRadius="2xl" p={5} border="1px solid" borderColor="ink.200" boxShadow="card">
@@ -231,8 +283,8 @@ export default function PaymentsMaitres() {
             <Text fontSize="sm" fontWeight="600" color="ink.500">إجمالي المدفوع (مُصفّى)</Text>
             <Icon as={CheckCircle2} boxSize={4.5} color="positive.500" />
           </HStack>
-          <Text fontFamily="heading" fontSize="2xl" fontWeight="700" color="ink.900">{totalPayeFiltre?.toLocaleString('fr-FR')} د.ت</Text>
-          <Text fontSize="xs" color="ink.400" mt={1}>ضمن التحديد الحالي</Text>
+          <Text fontFamily="heading" fontSize="2xl" fontWeight="700" color="ink.900">{formatMoney(totalPayeFiltre)}</Text>
+          <Text fontSize="xs" color="ink.400" mt={1}>من أصل {formatMoney(totalDuFiltre)}</Text>
         </Box>
 
         <Box bg="white" borderRadius="2xl" p={5} border="1px solid" borderColor="ink.200" boxShadow="card">
@@ -296,13 +348,13 @@ export default function PaymentsMaitres() {
           ))}
         </Select>
 
-        {(search || yearFilter !== currentYear || monthFilter !== currentPeriodKey || statusFilter) && (
+        {hasActiveFilters && (
           <Button size="sm" variant="ghost" onClick={resetFilters}>
             إعادة التعيين
           </Button>
         )}
 
-        <HStack spacing={1.5} ml="auto" color="ink.400">
+        <HStack spacing={1.5} marginInlineStart="auto" color="ink.400">
           <CreditCard size={15} />
           <Text fontSize="xs">{filtered.length} دفعة(ات)</Text>
         </HStack>
@@ -319,7 +371,7 @@ export default function PaymentsMaitres() {
             <Tooltip label="الدفع" hasArrow>
               <IconButton
                 aria-label="الدفع"
-                disabled={row.status !== 'no payé'}
+                isDisabled={row.status !== 'non payé'}
                 icon={<Wallet size={16} />}
                 size="sm"
                 variant="ghost"
@@ -329,12 +381,19 @@ export default function PaymentsMaitres() {
               />
             </Tooltip>
             <Tooltip label="السجل" hasArrow>
-              <IconButton aria-label="السجل" icon={<HistoryIcon size={16} />} size="sm" variant="ghost" onClick={() => openHistory(row)} />
+              <IconButton
+                aria-label="السجل"
+                icon={<HistoryIcon size={16} />}
+                size="sm"
+                variant="ghost"
+                onClick={() => openHistory(row)}
+              />
             </Tooltip>
           </HStack>
         )}
       />
 
+      {/* Pay confirmation modal */}
       <Modal isOpen={payModal.isOpen} onClose={payModal.onClose} isCentered size="sm">
         <ModalOverlay />
         <ModalContent borderRadius="xl">
@@ -344,20 +403,23 @@ export default function PaymentsMaitres() {
             <Text fontSize="sm" color="ink.600">
               هل تريد تأكيد الدفع لـ{' '}
               <Text as="span" fontWeight="700" color="ink.900">
-                {payTarget ? `${payTarget.paymentTeacher.name} ${payTarget.paymentTeacher.last_name}` : ''}
+                {payTarget ? teacherName(payTarget) : ''}
               </Text>{' '}؟
             </Text>
             {payTarget && (
-              <Text fontSize="xs" color="ink.400" mt={2}>{Number(payTarget.amount)?.toLocaleString('fr-FR')} د.ت</Text>
+              <Text fontSize="xs" color="ink.400" mt={2}>
+                {formatMonthLabel(periodKey(payTarget))} — {formatMoney(payTarget.amount)}
+              </Text>
             )}
           </ModalBody>
           <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={payModal.onClose}>إلغاء</Button>
+            <Button variant="ghost" marginInlineEnd={3} onClick={payModal.onClose}>إلغاء</Button>
             <Button colorScheme="green" onClick={handleConfirmPay} isLoading={isPaying}>تأكيد</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
 
+      {/* History modal */}
       <Modal isOpen={historyModal.isOpen} onClose={historyModal.onClose} size="lg">
         <ModalOverlay />
         <ModalContent borderRadius="xl">
@@ -365,7 +427,7 @@ export default function PaymentsMaitres() {
             سجل المدفوعات
             {historyPerson && (
               <Text fontSize="sm" fontWeight="400" color="ink.500" mt={1}>
-                {historyPerson.paymentTeacher.name} {historyPerson.paymentTeacher.last_name}
+                {teacherName(historyPerson)}
               </Text>
             )}
           </ModalHeader>
@@ -378,10 +440,12 @@ export default function PaymentsMaitres() {
                 {historyRows.map((p) => {
                   const c = STATUS_COLORS[p.status] || { bg: 'ink.100', color: 'ink.700' };
                   return (
-                    <HStack key={p.id} justify="space-between" py={3}>
+                    <HStack key={paymentId(p)} justify="space-between" py={3}>
                       <Box>
                         <Text fontSize="sm" fontWeight="600" color="ink.800">{formatMonthLabel(periodKey(p))}</Text>
-                        <Text fontSize="xs" color="ink.400">{Number(p.amount)?.toLocaleString('fr-FR')} د.ت — {formatDate(p.createdAt)}</Text>
+                        <Text fontSize="xs" color="ink.400">
+                          {Number(p.hour_count || 0)} س — {formatMoney(p.amount)} — {formatDate(p.updatedAt || p.paid_at)}
+                        </Text>
                       </Box>
                       <Badge bg={c.bg} color={c.color} borderRadius="full" px={2.5}>
                         {STATUS_LABELS[p.status] || p.status}

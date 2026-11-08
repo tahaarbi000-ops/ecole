@@ -32,7 +32,7 @@ import { AxiosToken } from '../../api/Api';
 
 const STATUS_COLORS = {
   payé: { bg: 'positive.50', color: 'positive.600' },
-  "no payé": { bg: 'accent.50', color: 'accent.500' },
+  "non payé": { bg: 'accent.50', color: 'accent.500' },
   'en attente': { bg: 'warning.50', color: 'warning.500' },
 };
 
@@ -160,7 +160,7 @@ export default function PaymentsEmploy() {
       render: (row) => {
     const statusLabels = {
         "payé": "مدفوع",
-        "no payé": "غير مدفوع",
+        "non payé": "غير مدفوع",
         "en attente": "قيد الانتظار",
     };
 
